@@ -1,0 +1,109 @@
+# Implementation Plan
+
+- [ ] 1. Write bug condition exploration test
+  - **Property 1: Fault Condition** - TypeError on undefined assignmentId/studentId
+  - **CRITICAL**: Test này PHẢI FAIL trên unfixed code - failure xác nhận bug tồn tại
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: Test này encode expected behavior - sẽ validate fix khi pass sau khi implementation
+  - **GOAL**: Surface counterexamples chứng minh bug tồn tại
+  - **Scoped PBT Approach**: Scope property đến concrete failing cases - submissions với assignmentId hoặc studentId undefined/null
+  - Test implementation details từ Fault Condition trong design:
+    - Test case 1: Submission có `assignmentId: undefined` với valid `studentId`
+    - Test case 2: Submission có `studentId: null` với valid `assignmentId`
+    - Test case 3: Submission có cả `assignmentId` và `studentId` undefined
+    - Test case 4: Mixed array với valid và invalid submissions
+  - Test assertions phải match Expected Behavior Properties từ design:
+    - Code KHÔNG được throw TypeError khi gọi `.toString()` trên undefined values
+    - Code phải skip invalid submissions và treat chúng như không match
+  - Run test trên UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS với TypeError (đúng - chứng minh bug tồn tại)
+  - Document counterexamples tìm được để hiểu root cause:
+    - Ghi lại exact error message và line number
+    - Ghi lại input data gây ra crash
+    - Confirm root cause: missing null check trước `.toString()`
+  - Mark task complete khi test được viết, chạy, và failure được document
+  - _Requirements: 1.1, 1.2, 1.3_
+
+- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Valid submission matching behavior
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior trên UNFIXED code cho non-buggy inputs (valid submissions):
+    - Observe: Submission với valid IDs và score hiển thị "{score}/{maxScore}" màu xanh
+    - Observe: Submission với valid IDs nhưng no score hiển thị "Đã nộp (chưa chấm)" màu xám
+    - Observe: Assignment không có submission hiển thị "-" màu xám nhạt
+    - Observe: Published assignment hiển thị "Làm bài" button
+  - Write property-based tests capturing observed behavior patterns từ Preservation Requirements:
+    - Property test 1: For all submissions với valid assignmentId và studentId, matching logic returns correct submission
+    - Property test 2: For all assignments với matching submission có score, UI displays "{score}/{maxScore}" in green
+    - Property test 3: For all assignments với matching submission no score, UI displays "Đã nộp (chưa chấm)" in gray
+    - Property test 4: For all assignments without matching submission, UI displays "-" or "Làm bài" button
+  - Property-based testing generates nhiều test cases cho stronger guarantees
+  - Run tests trên UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (confirms baseline behavior to preserve)
+  - Mark task complete khi tests được viết, chạy, và passing trên unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [x] 3. Fix TypeError trong ClassDetail.js
+
+  - [x] 3.1 Implement safeIdToString helper function
+    - Tạo helper function để safely convert ID to string
+    - Function phải check null/undefined trước khi gọi `.toString()`
+    - Function phải handle cả object với `_id` property và plain string
+    - Return null nếu input invalid
+    - _Bug_Condition: isBugCondition(input) where submission.assignmentId or submission.studentId is undefined/null_
+    - _Expected_Behavior: safeIdToString returns null for invalid inputs, preventing TypeError_
+    - _Preservation: Function must correctly convert valid IDs to string (same as original logic)_
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [x] 3.2 Fix score display logic (dòng 880-881)
+    - Replace submission finding logic với safeIdToString helper
+    - Add null check trong find predicate để skip invalid submissions
+    - Ensure logic chỉ match với submissions có cả studentId và assignmentId valid
+    - Optional: Add defensive logging cho invalid submissions
+    - _Bug_Condition: isBugCondition(input) at line 880-881_
+    - _Expected_Behavior: No TypeError when assignmentId/studentId undefined, graceful fallback_
+    - _Preservation: Valid submissions still match correctly and display scores_
+    - _Requirements: 1.1, 2.1, 2.2, 2.3, 3.1, 3.2_
+
+  - [x] 3.3 Fix action button display logic (dòng 897-898)
+    - Replace submission finding logic với safeIdToString helper
+    - Add null check trong find predicate để skip invalid submissions
+    - Ensure logic chỉ match với submissions có cả studentId và assignmentId valid
+    - Optional: Add defensive logging cho invalid submissions
+    - _Bug_Condition: isBugCondition(input) at line 897-898_
+    - _Expected_Behavior: No TypeError when assignmentId/studentId undefined, graceful fallback_
+    - _Preservation: Valid submissions still match correctly and display action buttons_
+    - _Requirements: 1.2, 2.1, 2.2, 2.3, 3.4_
+
+  - [x] 3.4 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - TypeError on undefined assignmentId/studentId
+    - **IMPORTANT**: Re-run SAME test từ task 1 - do NOT write new test
+    - Test từ task 1 encode expected behavior
+    - Khi test này pass, confirms expected behavior được satisfied
+    - Run bug condition exploration test từ step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - Verify tất cả test cases pass:
+      - Test case 1: Submission với `assignmentId: undefined` không crash
+      - Test case 2: Submission với `studentId: null` không crash
+      - Test case 3: Submission với cả hai undefined không crash
+      - Test case 4: Mixed array xử lý gracefully
+    - _Requirements: Expected Behavior Properties from design (2.1, 2.2, 2.3)_
+
+  - [x] 3.5 Verify preservation tests still pass
+    - **Property 2: Preservation** - Valid submission matching behavior
+    - **IMPORTANT**: Re-run SAME tests từ task 2 - do NOT write new tests
+    - Run preservation property tests từ step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm tất cả tests vẫn pass sau fix:
+      - Valid submissions vẫn match correctly
+      - Scores vẫn hiển thị đúng format và màu
+      - Ungraded submissions vẫn hiển thị "Đã nộp (chưa chấm)"
+      - No submission vẫn hiển thị "-" hoặc "Làm bài" button
+      - Teacher/admin view không bị ảnh hưởng
+    - _Requirements: Preservation Requirements from design (3.1, 3.2, 3.3, 3.4, 3.5)_
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Verify tất cả exploration tests pass (bug fixed)
+  - Verify tất cả preservation tests pass (no regressions)
+  - Verify manual testing: reload page → click "Bài Tập" tab → no crash
+  - Ask user nếu có questions hoặc issues
