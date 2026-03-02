@@ -11,10 +11,30 @@ const Classes = () => {
   const [subjects, setSubjects] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [restrictedStatus, setRestrictedStatus] = useState(null); // 'on_leave' or 'dismissed'
 
-  const fetch = () => {
-    const url = user?.role === 'admin' ? '/classes' : '/classes/my-classes';
-    return api.get(url).then(({ data }) => setClasses(data.data));
+  const fetch = async () => {
+    try {
+      const url = user?.role === 'admin' ? '/classes' : '/classes/my-classes';
+      const { data } = await api.get(url);
+      setClasses(data.data);
+      setRestrictedStatus(null);
+    } catch (error) {
+      // If user is restricted, show friendly message
+      if (error.response?.status === 403) {
+        setClasses([]);
+        const code = error.response?.data?.code;
+        const message = error.response?.data?.message || '';
+        
+        if (code === 'ACCOUNT_DISMISSED' || message.includes('đuổi học') || message.includes('dismissed')) {
+          setRestrictedStatus('dismissed');
+        } else {
+          setRestrictedStatus('on_leave');
+        }
+      } else {
+        console.error('Error fetching classes:', error);
+      }
+    }
   };
   useEffect(() => {
     fetch();
@@ -33,6 +53,7 @@ const Classes = () => {
       teacherId: fd.get('teacherId'),
       semester: fd.get('semester'),
       year: fd.get('year'),
+      totalLessons: fd.get('totalLessons') ? parseInt(fd.get('totalLessons')) : undefined,
     });
     setModal(null);
     fetch();
@@ -48,6 +69,7 @@ const Classes = () => {
       semester: fd.get('semester'),
       year: fd.get('year'),
       status: fd.get('status'),
+      totalLessons: fd.get('totalLessons') ? parseInt(fd.get('totalLessons')) : undefined,
     });
     setModal(null);
     setEditing(null);
@@ -73,10 +95,72 @@ const Classes = () => {
           <button className="btn-primary" onClick={() => { setEditing(null); setModal('create'); }}>+ Thêm lớp</button>
         )}
       </div>
+      {restrictedStatus === 'dismissed' && user?.role === 'student' && (
+        <div style={{
+          backgroundColor: '#f8d7da',
+          border: '1px solid #f5c6cb',
+          borderRadius: '8px',
+          padding: '20px',
+          margin: '20px 0',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ color: '#721c24', marginTop: 0 }}>
+            🚫 Tài khoản của bạn đã bị đuổi học
+          </h3>
+          <p style={{ color: '#721c24', marginBottom: '16px' }}>
+            Bạn không thể truy cập các lớp học.
+          </p>
+          <Link 
+            to="/student/expulsion" 
+            style={{
+              display: 'inline-block',
+              padding: '10px 20px',
+              backgroundColor: '#dc3545',
+              color: '#fff',
+              textDecoration: 'none',
+              borderRadius: '4px',
+              fontWeight: '500'
+            }}
+          >
+            Xem quyết định đuổi học
+          </Link>
+        </div>
+      )}
+      {restrictedStatus === 'on_leave' && user?.role === 'student' && (
+        <div style={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '8px',
+          padding: '20px',
+          margin: '20px 0',
+          textAlign: 'center'
+        }}>
+          <h3 style={{ color: '#856404', marginTop: 0 }}>
+            ⚠️ Bạn đang trong thời gian bảo lưu
+          </h3>
+          <p style={{ color: '#856404', marginBottom: '16px' }}>
+            Bạn không thể truy cập các lớp học trong thời gian bảo lưu.
+          </p>
+          <Link 
+            to="/leave/status" 
+            style={{
+              display: 'inline-block',
+              padding: '10px 20px',
+              backgroundColor: '#ffc107',
+              color: '#000',
+              textDecoration: 'none',
+              borderRadius: '4px',
+              fontWeight: '500'
+            }}
+          >
+            Xem trạng thái đơn bảo lưu
+          </Link>
+        </div>
+      )}
       <div className="table-box">
         <table>
           <thead>
-            <tr><th>Tên lớp</th><th>Môn học</th><th>GV</th><th>Học kỳ</th><th>Năm học</th><th>Trạng thái</th><th>Thao tác</th></tr>
+            <tr><th>Tên lớp</th><th>Môn học</th><th>GV</th><th>Học kỳ</th><th>Năm học</th><th>Số tiết</th><th>Trạng thái</th><th>Thao tác</th></tr>
           </thead>
           <tbody>
             {classes.map((c) => (
@@ -86,9 +170,21 @@ const Classes = () => {
                 <td>{c.teacherId?.name}</td>
                 <td>{c.semester}</td>
                 <td>{c.year}</td>
+                <td>
+                  {c.totalLessons ? (
+                    <span>
+                      {c.scheduledLessons || 0}/{c.totalLessons}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#999' }}>-</span>
+                  )}
+                </td>
                 <td>{c.status}</td>
                 <td>
-                  <Link to={`/classes/${c._id}`}>Chi tiết</Link>
+                  {!restrictedStatus && <Link to={`/classes/${c._id}`}>Chi tiết</Link>}
+                  {restrictedStatus && user?.role === 'student' && (
+                    <span style={{ color: '#999', fontStyle: 'italic' }}>Không khả dụng</span>
+                  )}
                   {user?.role === 'admin' && (
                     <>
                       <button onClick={() => { setEditing(c); setModal('edit'); }}>Sửa</button>
@@ -120,6 +216,13 @@ const Classes = () => {
               </select>
               <input name="semester" placeholder="Học kỳ" />
               <input name="year" placeholder="Năm học" />
+              <input 
+                name="totalLessons" 
+                type="number" 
+                placeholder="Tổng số tiết (tùy chọn)" 
+                min="1"
+                max="200"
+              />
               <div>
                 <button type="submit">Tạo</button>
                 <button type="button" onClick={() => setModal(null)}>Hủy</button>
@@ -144,6 +247,14 @@ const Classes = () => {
               </select>
               <input name="semester" placeholder="Học kỳ" defaultValue={editing.semester} />
               <input name="year" placeholder="Năm học" defaultValue={editing.year} />
+              <input 
+                name="totalLessons" 
+                type="number" 
+                placeholder="Tổng số tiết (tùy chọn)" 
+                defaultValue={editing.totalLessons || ''}
+                min="1"
+                max="200"
+              />
               <select name="status" defaultValue={editing.status}>
                 <option value="active">active</option>
                 <option value="closed">closed</option>

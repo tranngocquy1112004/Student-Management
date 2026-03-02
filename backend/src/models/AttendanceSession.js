@@ -12,4 +12,10 @@ const attendanceSessionSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+// Indexes for pagination performance
+attendanceSessionSchema.index({ classId: 1 });
+attendanceSessionSchema.index({ isDeleted: 1 });
+attendanceSessionSchema.index({ classId: 1, isDeleted: 1 }); // Compound index for fetching class sessions
+attendanceSessionSchema.index({ date: -1 }); // For date-based sorting
+
 export default mongoose.model('AttendanceSession', attendanceSessionSchema);

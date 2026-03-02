@@ -103,8 +103,31 @@ export const getClassStudents = async (req, res) => {
   try {
     const allowed = await canAccessClass(req.user, req.params.id);
     if (!allowed) return res.status(403).json({ success: false });
-    const enrollments = await Enrollment.find({ classId: req.params.id }).populate('studentId', 'name email studentCode');
-    res.json({ success: true, data: enrollments.map(e => ({ ...e.studentId.toObject(), enrolledAt: e.enrolledAt })) });
+
+    const { page, limit } = req.query;
+    const filter = { classId: req.params.id };
+
+    const { paginate } = await import('../utils/pagination.js');
+    const result = await paginate(
+      Enrollment,
+      filter,
+      {
+        page,
+        limit,
+        sort: { enrolledAt: -1 },
+        populate: { path: 'studentId', select: 'name email studentCode status' }
+      }
+    );
+
+    // Transform data to match original format
+    if (result.data) {
+      result.data = result.data.map(e => ({
+        ...e.studentId.toObject(),
+        enrolledAt: e.enrolledAt
+      }));
+    }
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

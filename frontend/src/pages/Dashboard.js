@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import api from '../api/axios';
@@ -68,19 +69,57 @@ export const TeacherDashboard = () => {
   const [data, setData] = useState(null);
   const [gradeData, setGradeData] = useState({ gioi: 0, kha: 0, trungBinh: 0, yeu: 0 });
   const [attendanceRate, setAttendanceRate] = useState(0);
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState('all');
   
+  // Fetch classes list
+  useEffect(() => {
+    api.get('/classes').then(({ data: res }) => {
+      setClasses(res.data || []);
+    }).catch(err => {
+      console.error('Error fetching classes:', err);
+    });
+  }, []);
+  
+  // Fetch dashboard data based on selected class
   useEffect(() => { 
-    api.get('/dashboard/teacher').then(({ data: res }) => {
+    const url = selectedClass === 'all' 
+      ? '/dashboard/teacher' 
+      : `/dashboard/teacher?classId=${selectedClass}`;
+      
+    api.get(url).then(({ data: res }) => {
       setData(res.data);
       setGradeData(res.data.gradeDistribution || { gioi: 0, kha: 0, trungBinh: 0, yeu: 0 });
       setAttendanceRate(res.data.attendRate || 0);
+    }).catch(err => {
+      console.error('Error fetching dashboard data:', err);
     }); 
-  }, []);
+  }, [selectedClass]);
   
   if (!data) return <div>Đang tải...</div>;
+  
   return (
     <div className="dashboard">
-      <h1>Dashboard Giảng viên</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h1>Dashboard Giảng viên</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label htmlFor="classFilter" style={{ fontWeight: 'bold' }}>Lọc theo lớp:</label>
+          <select 
+            id="classFilter"
+            value={selectedClass} 
+            onChange={(e) => setSelectedClass(e.target.value)}
+            style={{ padding: '8px 12px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value="all">Tất cả lớp</option>
+            {classes.map((cls) => (
+              <option key={cls._id} value={cls._id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      
       <div className="stats-grid">
         <div className="stat-card"><span className="stat-num">{data.totalClasses}</span><span>Lớp dạy</span></div>
         <div className="stat-card"><span className="stat-num">{data.totalStudents}</span><span>Sinh viên</span></div>
@@ -90,7 +129,7 @@ export const TeacherDashboard = () => {
       </div>
       
       {/* Attendance Rate Chart */}
-      <AttendanceRateChart />
+      <AttendanceRateChart classId={selectedClass !== 'all' ? selectedClass : undefined} />
       
       <div className="charts-row">
         <div className="chart-box">
@@ -176,7 +215,111 @@ export const TeacherDashboard = () => {
 
 export const StudentDashboard = () => {
   const [data, setData] = useState(null);
-  useEffect(() => { api.get('/dashboard/student').then(({ data: res }) => setData(res.data)); }, []);
+  const [restrictedStatus, setRestrictedStatus] = useState(null); // 'on_leave' or 'dismissed'
+  
+  useEffect(() => { 
+    api.get('/dashboard/student')
+      .then(({ data: res }) => {
+        setData(res.data);
+        setRestrictedStatus(null);
+      })
+      .catch((error) => {
+        if (error.response?.status === 403) {
+          // Check error code or message to determine if on_leave or dismissed
+          const code = error.response?.data?.code;
+          const message = error.response?.data?.message || '';
+          
+          if (code === 'ACCOUNT_DISMISSED' || message.includes('đuổi học') || message.includes('dismissed')) {
+            setRestrictedStatus('dismissed');
+          } else {
+            setRestrictedStatus('on_leave');
+          }
+        }
+      });
+  }, []);
+  
+  // Sinh viên bị đuổi học
+  if (restrictedStatus === 'dismissed') {
+    return (
+      <div className="dashboard">
+        <h1>Dashboard Học sinh</h1>
+        <div style={{
+          backgroundColor: '#f8d7da',
+          border: '1px solid #f5c6cb',
+          borderRadius: '8px',
+          padding: '40px',
+          textAlign: 'center',
+          marginTop: '40px'
+        }}>
+          <h2 style={{ color: '#721c24', marginTop: 0 }}>
+            🚫 Tài khoản của bạn đã bị đuổi học
+          </h2>
+          <p style={{ color: '#721c24', fontSize: '16px', marginBottom: '24px' }}>
+            Bạn không thể truy cập các lớp học và bài tập.
+            <br />
+            Vui lòng xem quyết định đuổi học và gửi đơn khiếu nại nếu cần.
+          </p>
+          <Link 
+            to="/student/expulsion" 
+            style={{
+              display: 'inline-block',
+              padding: '12px 24px',
+              backgroundColor: '#dc3545',
+              color: '#fff',
+              textDecoration: 'none',
+              borderRadius: '4px',
+              fontWeight: '500',
+              fontSize: '16px'
+            }}
+          >
+            Xem quyết định đuổi học
+          </Link>
+        </div>
+      </div>
+    );
+  }
+  
+  // Sinh viên đang bảo lưu
+  if (restrictedStatus === 'on_leave') {
+    return (
+      <div className="dashboard">
+        <h1>Dashboard Học sinh</h1>
+        <div style={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '8px',
+          padding: '40px',
+          textAlign: 'center',
+          marginTop: '40px'
+        }}>
+          <h2 style={{ color: '#856404', marginTop: 0 }}>
+            ⚠️ Bạn đang trong thời gian bảo lưu
+          </h2>
+          <p style={{ color: '#856404', fontSize: '16px', marginBottom: '24px' }}>
+            Bạn không thể truy cập các lớp học và bài tập trong thời gian bảo lưu.
+            <br />
+            Vui lòng xem trạng thái đơn bảo lưu của bạn để biết thêm chi tiết.
+          </p>
+          <Link 
+            to="/leave/status" 
+            style={{
+              display: 'inline-block',
+              padding: '12px 24px',
+              backgroundColor: '#ffc107',
+              color: '#000',
+              textDecoration: 'none',
+              borderRadius: '4px',
+              fontWeight: '500',
+              fontSize: '16px'
+            }}
+          >
+            Xem trạng thái đơn bảo lưu
+          </Link>
+        </div>
+      </div>
+    );
+  }
+  
   if (!data) return <div>Đang tải...</div>;
   return (
     <div className="dashboard">

@@ -71,7 +71,15 @@ export const getAdminDashboard = async (req, res) => {
 
 export const getTeacherDashboard = async (req, res) => {
   try {
-    const classes = await Class.find({ teacherId: req.user._id, isDeleted: false });
+    const { classId } = req.query;
+    
+    // Filter classes based on classId parameter
+    let classFilter = { teacherId: req.user._id, isDeleted: false };
+    if (classId && classId !== 'all') {
+      classFilter._id = classId;
+    }
+    
+    const classes = await Class.find(classFilter);
     const classIds = classes.map(c => c._id);
     const totalStudents = await Enrollment.countDocuments({ classId: { $in: classIds } });
     const assignments = await Assignment.find({ classId: { $in: classIds }, isDeleted: false, status: 'published' });

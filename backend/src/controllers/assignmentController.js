@@ -66,8 +66,22 @@ export const getAssignments = async (req, res) => {
   try {
     const allowed = await canAccessClass(req.user, req.params.classId);
     if (!allowed) return res.status(403).json({ success: false });
-    const assignments = await Assignment.find({ classId: req.params.classId, isDeleted: false }).sort({ deadline: -1 });
-    res.json({ success: true, data: assignments });
+
+    const { page, limit } = req.query;
+    const filter = { classId: req.params.classId, isDeleted: false };
+
+    const { paginate } = await import('../utils/pagination.js');
+    const result = await paginate(
+      Assignment,
+      filter,
+      {
+        page,
+        limit,
+        sort: { deadline: -1 }
+      }
+    );
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

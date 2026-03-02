@@ -50,8 +50,22 @@ export const getSessions = async (req, res) => {
   try {
     const allowed = await canAccessClass(req.user, req.params.classId);
     if (!allowed) return res.status(403).json({ success: false });
-    const sessions = await AttendanceSession.find({ classId: req.params.classId, isDeleted: false }).sort({ date: -1 });
-    res.json({ success: true, data: sessions });
+
+    const { page, limit } = req.query;
+    const filter = { classId: req.params.classId, isDeleted: false };
+
+    const { paginate } = await import('../utils/pagination.js');
+    const result = await paginate(
+      AttendanceSession,
+      filter,
+      {
+        page,
+        limit,
+        sort: { date: -1 }
+      }
+    );
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -214,9 +228,37 @@ export const getMyAttendance = async (req, res) => {
   try {
     const en = await Enrollment.findOne({ classId: req.params.classId, studentId: req.user._id });
     if (!en) return res.status(403).json({ success: false });
-    const sessions = await AttendanceSession.find({ classId: req.params.classId, isDeleted: false });
-    const records = await AttendanceRecord.find({ sessionId: { $in: sessions.map(s => s._id) }, studentId: req.user._id });
-    res.json({ success: true, data: { sessions, records } });
+
+    const { page, limit } = req.query;
+    const filter = { classId: req.params.classId, isDeleted: false };
+
+    const { paginate } = await import('../utils/pagination.js');
+    const sessionsResult = await paginate(
+      AttendanceSession,
+      filter,
+      {
+        page,
+        limit,
+        sort: { date: -1 }
+      }
+    );
+
+    // Get records for the paginated sessions
+    const sessionIds = sessionsResult.data ? sessionsResult.data.map(s => s._id) : [];
+    const records = await AttendanceRecord.find({
+      sessionId: { $in: sessionIds },
+      studentId: req.user._id
+    });
+
+    // Return both sessions and records with pagination metadata
+    res.json({
+      success: true,
+      data: {
+        sessions: sessionsResult.data,
+        records
+      },
+      pagination: sessionsResult.pagination
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -293,6 +335,127 @@ export const getTeacherAttendanceRates = async (req, res) => {
     const teacherId = req.user.role === 'teacher' ? req.user._id : req.params.teacherId;
     const rates = await attendanceService.getTeacherClassesAttendanceRate(teacherId);
     res.json({ success: true, data: rates });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const directCheckIn = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    // Validate student is enrolled
+    const enrollment = await Enrollment.findOne({ classId, studentId: req.user._id });
+    if (!enrollment) {
+      return res.status(403).json({ success: false, message: 'Bạn không được ghi danh vào lớp học này' });
+    }
+    
+    // Validate schedule and time window
+    const validation = await scheduleValidator.validateScheduleAndTime(classId);
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: validation.message,
+        code: validation.code
+      });
+    }
+    
+    // Find or create today's attendance session
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    let session = await AttendanceSession.findOne({
+      classId,
+      date: { $gte: today, $lt: tomorrow },
+      isDeleted: false
+    });
+    
+    if (!session) {
+      // Auto-create session for today
+      session = await AttendanceSession.create({
+        classId,
+        date: new Date(),
+        shift: validation.schedule.shift || `${validation.schedule.startTime} - ${validation.schedule.endTime}`
+      });
+    }
+    
+    // Check if already checked in
+    const existingRecord = await AttendanceRecord.findOne({
+      sessionId: session._id,
+      studentId: req.user._id
+    });
+    
+    if (existingRecord) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Bạn đã điểm danh cho buổi học này rồi' 
+      });
+    }
+    
+    // Create attendance record
+    const record = await AttendanceRecord.create({
+      sessionId: session._id,
+      studentId: req.user._id,
+      status: 'present',
+      checkInMethod: 'manual',
+      checkedAt: new Date()
+    });
+    
+    res.json({ 
+      success: true, 
+      data: record,
+      message: 'Điểm danh thành công'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getStudentAttendanceStatus = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    // Validate student is enrolled
+    const enrollment = await Enrollment.findOne({ classId, studentId: req.user._id });
+    if (!enrollment) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+    
+    // Get today's date range
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Find today's session
+    const session = await AttendanceSession.findOne({
+      classId,
+      date: { $gte: today, $lt: tomorrow },
+      isDeleted: false
+    });
+    
+    if (!session) {
+      return res.json({ 
+        success: true, 
+        hasCheckedIn: false,
+        sessionExists: false
+      });
+    }
+    
+    // Check if student has attendance record for today
+    const record = await AttendanceRecord.findOne({
+      sessionId: session._id,
+      studentId: req.user._id
+    });
+    
+    res.json({ 
+      success: true, 
+      hasCheckedIn: !!record,
+      sessionExists: true,
+      record: record || null
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

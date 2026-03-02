@@ -4,7 +4,9 @@ import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
+import ResetPasswordModal from '../components/ResetPasswordModal';
 import AttendanceStatistics from '../components/AttendanceStatistics';
+import ScheduleGeneratorModal from '../components/ScheduleGeneratorModal';
 import * as XLSX from 'xlsx';
 import './Table.css';
 
@@ -43,6 +45,20 @@ const ClassDetail = () => {
   const [quizQuestions, setQuizQuestions] = useState([]);
   const [assignmentPage, setAssignmentPage] = useState(1);
   const assignmentsPerPage = 5;
+  const [schedulePage, setSchedulePage] = useState(1);
+  const schedulesPerPage = 5;
+  const [attendancePage, setAttendancePage] = useState(1);
+  const attendancePerPage = 5;
+  const [studentAttendanceStatus, setStudentAttendanceStatus] = useState(null);
+  const [resetPasswordStudent, setResetPasswordStudent] = useState(null);
+  const [showScheduleGenerator, setShowScheduleGenerator] = useState(false);
+  const [isOnLeave, setIsOnLeave] = useState(false);
+  
+  // Search/Filter states
+  const [studentSearch, setStudentSearch] = useState('');
+  const [assignmentSearch, setAssignmentSearch] = useState('');
+  const [announcementSearch, setAnnouncementSearch] = useState('');
+  const [scheduleDate, setScheduleDate] = useState(''); // Changed to date filter
 
   const canEdit = user?.role === 'admin' || user?.role === 'teacher';
 
@@ -53,7 +69,23 @@ const ClassDetail = () => {
     return idValue?.toString() || null;
   };
 
-  const fetchClass = () => api.get(`/classes/${id}`).then(({ data }) => setCls(data.data));
+  const fetchClass = () => {
+    return api.get(`/classes/${id}`)
+      .then(({ data }) => {
+        setCls(data.data);
+        setIsOnLeave(false);
+      })
+      .catch((error) => {
+        if (error.response?.status === 403) {
+          setIsOnLeave(true);
+        } else {
+          toast.error('Lỗi khi tải thông tin lớp học');
+        }
+      });
+  };
+  
+  // Note: All endpoints below support pagination via ?page=1&limit=10 query params
+  // Backend is backward compatible - returns all data when no params provided
   const fetchStudents = () => api.get(`/classes/${id}/students`).then(({ data }) => setStudents(data.data));
   const fetchAssignments = () => api.get(`/classes/${id}/assignments`).then(({ data }) => setAssignments(data.data));
   const fetchGradebook = () => api.get(`/classes/${id}/gradebook`).then(({ data }) => {
@@ -151,6 +183,7 @@ const ClassDetail = () => {
     fetchGradebook().catch(() => {});
     fetchMyAttendance();
     fetchMyEnrollment();
+    fetchStudentAttendanceStatus();
   }
   console.log('=== END USEEFFECT DEBUG ===');
   }, [id, canEdit, user]);
@@ -338,42 +371,32 @@ const ClassDetail = () => {
       toast.success('Đã xóa');
     }, onCancel: () => setConfirm(null) });
   };
-  const handleCreateSchedule = async (e) => {
-    e.preventDefault();
+  const handleDirectCheckIn = async () => {
     try {
-      const fd = new FormData(e.target);
-      const shift = fd.get('shift');
-      
-      // Xác định thời gian theo ca
-      let startTime, endTime;
-      if (shift === 'sáng') {
-        startTime = '08:30';
-        endTime = '11:30';
-      } else if (shift === 'chiều') {
-        startTime = '13:30';
-        endTime = '17:00';
-      } else {
-        toast.error('Vui lòng chọn ca học');
-        return;
+      const response = await api.post(`/classes/${id}/attendance/direct-checkin`);
+      toast.success(response.data.message || 'Điểm danh thành công');
+      // Refresh attendance status
+      await fetchStudentAttendanceStatus();
+      await fetchAttendance();
+      if (user?.role === 'student') {
+        await fetchMyAttendance();
       }
-      
-      const response = await api.post(`/classes/${id}/schedules`, {
-        dayOfWeek: parseInt(fd.get('dayOfWeek')),
-        startTime,
-        endTime,
-        room: fd.get('room'),
-        shift
-      });
-      
-      // Backend đã tự động gửi email thông báo cho sinh viên
-      toast.success(response.data.message || 'Đã tạo lịch học');
-      
-      setModal(null);
-      fetchSchedules();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Lỗi khi thêm lịch học');
+      const message = error.response?.data?.message || 'Lỗi khi điểm danh';
+      toast.error(message);
     }
   };
+
+  const fetchStudentAttendanceStatus = async () => {
+    if (user?.role !== 'student') return;
+    try {
+      const { data } = await api.get(`/classes/${id}/attendance/student-status`);
+      setStudentAttendanceStatus(data);
+    } catch (error) {
+      console.error('Error fetching attendance status:', error);
+    }
+  };
+
 
   const downloadAttachment = async (attachment) => {
     try {
@@ -644,6 +667,7 @@ const ClassDetail = () => {
         startTime: fd.get('startTime'),
         endTime: fd.get('endTime'),
         room: fd.get('room'),
+        startDate: fd.get('startDate'),
       });
       toast.success('Cập nhật lịch học thành công');
       setModal(null);
@@ -716,6 +740,62 @@ const ClassDetail = () => {
     }
   };
 
+  if (isOnLeave && user?.role === 'student') {
+    return (
+      <div className="page">
+        <button onClick={() => navigate('/classes')} style={{ marginBottom: 16 }}>← Quay lại</button>
+        <div style={{
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
+          borderRadius: '8px',
+          padding: '40px',
+          textAlign: 'center',
+          marginTop: '40px'
+        }}>
+          <h2 style={{ color: '#856404', marginTop: 0 }}>
+            ⚠️ Bạn đang trong thời gian bảo lưu
+          </h2>
+          <p style={{ color: '#856404', fontSize: '16px', marginBottom: '24px' }}>
+            Bạn không thể truy cập chi tiết lớp học trong thời gian bảo lưu.
+            <br />
+            Vui lòng xem trạng thái đơn bảo lưu của bạn để biết thêm chi tiết.
+          </p>
+          <Link 
+            to="/leave/status" 
+            style={{
+              display: 'inline-block',
+              padding: '12px 24px',
+              backgroundColor: '#ffc107',
+              color: '#000',
+              textDecoration: 'none',
+              borderRadius: '4px',
+              fontWeight: '500',
+              fontSize: '16px',
+              marginRight: '12px'
+            }}
+          >
+            Xem trạng thái đơn bảo lưu
+          </Link>
+          <button 
+            onClick={() => navigate('/classes')}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#6c757d',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              fontWeight: '500',
+              fontSize: '16px',
+              cursor: 'pointer'
+            }}
+          >
+            Quay lại danh sách lớp
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!cls) return <div>Đang tải...</div>;
 
   return (
@@ -748,31 +828,111 @@ const ClassDetail = () => {
               <button className="btn-primary" onClick={() => setModal('addStudent')}>Thêm sinh viên</button>
             )}
           </div>
+          
+          {/* Search Filter */}
+          <div className="filters" style={{ marginBottom: '1.5rem', padding: '0 1.5rem' }}>
+            <input
+              type="text"
+              placeholder="🔍 Tìm kiếm theo tên, mã SV, email..."
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              style={{ flex: 1, minWidth: '300px' }}
+            />
+          </div>
+          
           <table>
-            <thead><tr><th>Mã SV</th><th>Họ tên</th><th>Email</th>{user?.role === 'admin' && <th>Thao tác</th>}</tr></thead>
+            <thead>
+              <tr>
+                <th>Mã SV</th>
+                <th>Họ tên</th>
+                <th>Email</th>
+                <th>Trạng thái</th>
+                {(user?.role === 'admin' || user?.role === 'teacher') && <th>Thao tác</th>}
+              </tr>
+            </thead>
             <tbody>
-              {students.length === 0 ? (
+              {students.filter(s => {
+                const search = studentSearch.toLowerCase();
+                return s.name?.toLowerCase().includes(search) ||
+                       s.studentCode?.toLowerCase().includes(search) ||
+                       s.email?.toLowerCase().includes(search);
+              }).length === 0 ? (
                 <tr>
                   <td
-                    colSpan={user?.role === 'admin' ? 4 : 3}
+                    colSpan={(user?.role === 'admin' || user?.role === 'teacher') ? 5 : 4}
                     style={{ textAlign: 'center', padding: 16, color: '#666' }}
                   >
-                    {user?.role === 'admin'
+                    {studentSearch ? 'Không tìm thấy sinh viên phù hợp' : (user?.role === 'admin'
                       ? 'Chưa có sinh viên trong lớp. Bấm "Thêm sinh viên" để thêm.'
-                      : 'Chưa có sinh viên trong lớp. Vui lòng liên hệ Admin để thêm sinh viên vào lớp.'}
+                      : 'Chưa có sinh viên trong lớp. Vui lòng liên hệ Admin để thêm sinh viên vào lớp.')}
                   </td>
                 </tr>
               ) : (
-                students.map((s) => (
-                  <tr key={s._id}>
-                    <td>{s.studentCode}</td>
-                    <td>{s.name}</td>
-                    <td>{s.email}</td>
-                    {user?.role === 'admin' && (
-                      <td><button className="btn-danger" onClick={() => handleRemoveStudent(s._id)}>Xóa</button></td>
-                    )}
-                  </tr>
-                ))
+                students.filter(s => {
+                  const search = studentSearch.toLowerCase();
+                  return s.name?.toLowerCase().includes(search) ||
+                         s.studentCode?.toLowerCase().includes(search) ||
+                         s.email?.toLowerCase().includes(search);
+                }).map((s) => {
+                  // Map status to Vietnamese display text
+                  const getStatusDisplay = (status) => {
+                    switch(status) {
+                      case 'active':
+                        return { text: 'Đi học', color: '#2e7d32', bgColor: '#e8f5e9' };
+                      case 'on_leave':
+                        return { text: 'Bảo lưu', color: '#ed6c02', bgColor: '#fff3e0' };
+                      case 'dismissed':
+                        return { text: 'Đuổi học', color: '#c62828', bgColor: '#ffebee' };
+                      case 'suspended':
+                        return { text: 'Đình chỉ', color: '#9e9e9e', bgColor: '#f5f5f5' };
+                      default:
+                        return { text: 'Đi học', color: '#2e7d32', bgColor: '#e8f5e9' };
+                    }
+                  };
+                  
+                  const statusDisplay = getStatusDisplay(s.status);
+                  
+                  return (
+                    <tr key={s._id}>
+                      <td>{s.studentCode}</td>
+                      <td>{s.name}</td>
+                      <td>{s.email}</td>
+                      <td>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          color: statusDisplay.color,
+                          backgroundColor: statusDisplay.bgColor,
+                          border: `1px solid ${statusDisplay.color}40`
+                        }}>
+                          {statusDisplay.text}
+                        </span>
+                      </td>
+                      {(user?.role === 'admin' || user?.role === 'teacher') && (
+                        <td>
+                          <button 
+                            className="btn-primary" 
+                            onClick={() => setResetPasswordStudent(s)}
+                            style={{ marginRight: 8 }}
+                          >
+                            Đặt lại MK
+                          </button>
+                          {user?.role === 'admin' && (
+                            <button 
+                              className="btn-danger" 
+                              onClick={() => handleRemoveStudent(s._id)}
+                            >
+                              Xóa
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -812,6 +972,18 @@ const ClassDetail = () => {
               )}
             </div>
           </div>
+          
+          {/* Search Filter */}
+          <div className="filters" style={{ marginBottom: '1.5rem', padding: '0 1.5rem' }}>
+            <input
+              type="text"
+              placeholder="🔍 Tìm kiếm bài tập theo tên..."
+              value={assignmentSearch}
+              onChange={(e) => setAssignmentSearch(e.target.value)}
+              style={{ flex: 1, minWidth: '300px' }}
+            />
+          </div>
+          
           <table>
           <thead>
             <tr>
@@ -835,10 +1007,25 @@ const ClassDetail = () => {
           </thead>
           <tbody>
             {(() => {
+              // Filter assignments by search
+              const filteredAssignments = assignments.filter(a => 
+                a.title?.toLowerCase().includes(assignmentSearch.toLowerCase())
+              );
+              
               // Pagination logic
               const startIndex = (assignmentPage - 1) * assignmentsPerPage;
               const endIndex = startIndex + assignmentsPerPage;
-              const paginatedAssignments = assignments.slice(startIndex, endIndex);
+              const paginatedAssignments = filteredAssignments.slice(startIndex, endIndex);
+              
+              if (filteredAssignments.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={user?.role === 'student' ? 4 : 5} style={{ textAlign: 'center', padding: 16, color: '#666' }}>
+                      {assignmentSearch ? 'Không tìm thấy bài tập phù hợp' : 'Chưa có bài tập nào'}
+                    </td>
+                  </tr>
+                );
+              }
               
               return paginatedAssignments.map((a) => (
               <tr key={a._id}>
@@ -850,14 +1037,28 @@ const ClassDetail = () => {
                     {/* Student View - 4 cột */}
                     <td>
                       {(() => {
+                        // Defensive check: ensure submissions array exists and user exists
+                        if (!Array.isArray(submissions) || !user?._id) {
+                          return <span style={{ color: '#999' }}>-</span>;
+                        }
+                        
+                        const userIdStr = safeIdToString(user._id);
+                        if (!userIdStr) {
+                          return <span style={{ color: '#999' }}>-</span>;
+                        }
+                        
                         // Tìm submission cho điểm
                         const submission = submissions.find(s => {
+                          // Defensive check: ensure s exists
+                          if (!s) return false;
+                          
                           const subStudentId = safeIdToString(s.studentId);
                           const subAssignmentId = safeIdToString(s.assignmentId);
+                          const assignmentId = safeIdToString(a._id);
                           // Skip invalid submissions
-                          if (!subStudentId || !subAssignmentId) return false;
-                          return subStudentId === user._id.toString() && 
-                                 subAssignmentId === a._id;
+                          if (!subStudentId || !subAssignmentId || !assignmentId) return false;
+                          return subStudentId === userIdStr && 
+                                 subAssignmentId === assignmentId;
                         });
                         
                         if (submission && submission.score != null) {
@@ -871,14 +1072,44 @@ const ClassDetail = () => {
                     </td>
                     <td>
                       {(() => {
+                        // Defensive check: ensure submissions array exists and user exists
+                        if (!Array.isArray(submissions) || !user?._id) {
+                          return (
+                            <button 
+                              className="btn-primary" 
+                              onClick={() => navigate(`/assignments/${a._id}/submit`)}
+                              disabled={a.status !== 'published'}
+                            >
+                              Làm bài
+                            </button>
+                          );
+                        }
+                        
+                        const userIdStr = safeIdToString(user._id);
+                        if (!userIdStr) {
+                          return (
+                            <button 
+                              className="btn-primary" 
+                              onClick={() => navigate(`/assignments/${a._id}/submit`)}
+                              disabled={a.status !== 'published'}
+                            >
+                              Làm bài
+                            </button>
+                          );
+                        }
+                        
                         // Tìm submission để hiển thị trạng thái
                         const submission = submissions.find(s => {
+                          // Defensive check: ensure s exists
+                          if (!s) return false;
+                          
                           const subStudentId = safeIdToString(s.studentId);
                           const subAssignmentId = safeIdToString(s.assignmentId);
+                          const assignmentId = safeIdToString(a._id);
                           // Skip invalid submissions
-                          if (!subStudentId || !subAssignmentId) return false;
-                          return subStudentId === user._id.toString() && 
-                                 subAssignmentId === a._id;
+                          if (!subStudentId || !subAssignmentId || !assignmentId) return false;
+                          return subStudentId === userIdStr && 
+                                 subAssignmentId === assignmentId;
                         });
                         
                         // Logic đơn giản dựa vào database
@@ -1010,25 +1241,66 @@ const ClassDetail = () => {
             </thead>
             <tbody>
               {(() => {
-                const gbMap = Object.fromEntries(gradebook.map(g => [(g.studentId?._id || g.studentId)?.toString(), g]));
+                // Defensive check: ensure gradebook and students are arrays
+                if (!Array.isArray(gradebook) || !Array.isArray(students)) {
+                  return (
+                    <tr>
+                      <td colSpan={assignmentsList.length + 3} style={{ textAlign: 'center', padding: 16, color: '#666' }}>
+                        Không có dữ liệu bảng điểm
+                      </td>
+                    </tr>
+                  );
+                }
+                
+                const gbMap = Object.fromEntries(
+                  gradebook
+                    .filter(g => g && (g.studentId?._id || g.studentId)) // Filter out invalid entries
+                    .map(g => {
+                      const key = safeIdToString(g.studentId?._id || g.studentId);
+                      return key ? [key, g] : null;
+                    })
+                    .filter(entry => entry !== null) // Remove null entries
+                );
+                
                 return students.map(s => {
-                  const gb = gbMap[(s._id || s).toString()];
+                  const studentKey = safeIdToString(s._id || s);
+                  const gb = studentKey ? gbMap[studentKey] : null;
                   return gb ? { ...gb, studentId: gb.studentId || s } : { studentId: s, qt: 0, gk: 0, ck: 0, total: 0, averageScore: 0 };
                 });
               })().map((g, idx) => {
-                const studentIdStr = (g.studentId?._id || g.studentId)?.toString();
+                const studentIdStr = safeIdToString(g.studentId?._id || g.studentId);
                 return (
                   <tr key={g._id || studentIdStr || idx}>
-                    <td>{g.studentId?.studentCode}</td>
-                    <td>{g.studentId?.name}</td>
-                    {assignmentsList.map(a => {
-                      const sub = submissions.find(s => (s.studentId?._id || s.studentId)?.toString() === studentIdStr && (s.assignmentId?._id || s.assignmentId)?.toString() === a._id);
+                    <td>{g.studentId?.studentCode || '-'}</td>
+                    <td>{g.studentId?.name || '-'}</td>
+                    {Array.isArray(assignmentsList) && assignmentsList.map(a => {
+                      if (!a || !a._id) return <td key={idx}>-</td>;
+                      
+                      // Defensive check for submissions array
+                      if (!Array.isArray(submissions)) {
+                        return <td key={a._id}>-</td>;
+                      }
+                      
+                      const sub = submissions.find(s => {
+                        if (!s) return false;
+                        const subStudentId = safeIdToString(s.studentId?._id || s.studentId);
+                        const subAssignmentId = safeIdToString(s.assignmentId?._id || s.assignmentId);
+                        const assignmentId = safeIdToString(a._id);
+                        return subStudentId && subAssignmentId && assignmentId && 
+                               subStudentId === studentIdStr && 
+                               subAssignmentId === assignmentId;
+                      });
+                      
                       let display;
                       if (sub) {
                         display = sub.score != null ? sub.score : (sub.status === 'late' ? 'QH' : '');
                       } else {
                         // not submitted yet - check deadline
-                        display = new Date() > new Date(a.deadline) ? 'QH' : '';
+                        try {
+                          display = new Date() > new Date(a.deadline) ? 'QH' : '';
+                        } catch (e) {
+                          display = '';
+                        }
                       }
                       return <td key={a._id}>{display}</td>;
                     })}
@@ -1047,18 +1319,46 @@ const ClassDetail = () => {
             <h3>Thông báo</h3>
             {canEdit && <button className="btn-primary" onClick={() => setModal('announcement')}>+ Thông báo</button>}
           </div>
+          
+          {/* Search Filter */}
+          <div className="filters" style={{ marginBottom: '1.5rem', padding: '0 1.5rem' }}>
+            <input
+              type="text"
+              placeholder="🔍 Tìm kiếm thông báo theo tiêu đề, nội dung..."
+              value={announcementSearch}
+              onChange={(e) => setAnnouncementSearch(e.target.value)}
+              style={{ flex: 1, minWidth: '300px' }}
+            />
+          </div>
+          
           <table>
             <thead><tr><th>Tiêu đề</th><th>Nội dung</th><th>Người gửi</th><th>Ngày</th>{canEdit && <th>Thao tác</th>}</tr></thead>
             <tbody>
-              {announcements.map((a) => (
-                <tr key={a._id}>
-                  <td>{a.title}</td>
-                  <td>{a.content?.substring(0, 50)}...</td>
-                  <td>{a.teacherId?.name}</td>
-                  <td>{new Date(a.createdAt).toLocaleString()}</td>
-                  {canEdit && <td><button className="btn-danger" onClick={() => handleDeleteAnnouncement(a._id)}>Xóa</button></td>}
+              {announcements.filter(a => {
+                const search = announcementSearch.toLowerCase();
+                return a.title?.toLowerCase().includes(search) ||
+                       a.content?.toLowerCase().includes(search);
+              }).length === 0 ? (
+                <tr>
+                  <td colSpan={canEdit ? 5 : 4} style={{ textAlign: 'center', padding: 16, color: '#666' }}>
+                    {announcementSearch ? 'Không tìm thấy thông báo phù hợp' : 'Chưa có thông báo nào'}
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                announcements.filter(a => {
+                  const search = announcementSearch.toLowerCase();
+                  return a.title?.toLowerCase().includes(search) ||
+                         a.content?.toLowerCase().includes(search);
+                }).map((a) => (
+                  <tr key={a._id}>
+                    <td>{a.title}</td>
+                    <td>{a.content?.substring(0, 50)}...</td>
+                    <td>{a.teacherId?.name}</td>
+                    <td>{new Date(a.createdAt).toLocaleString()}</td>
+                    {canEdit && <td><button className="btn-danger" onClick={() => handleDeleteAnnouncement(a._id)}>Xóa</button></td>}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1068,26 +1368,148 @@ const ClassDetail = () => {
         <div className="table-box">
           <div className="page-header">
             <h3>Lịch học</h3>
-            {canEdit && <button className="btn-primary" onClick={() => setModal('schedule')}>+ Thêm lịch</button>}
-          </div>
-          <table>
-            <thead><tr><th>Thứ</th><th>Giờ</th><th>Phòng</th>{canEdit && <th>Thao tác</th>}</tr></thead>
-            <tbody>
-              {schedules.map((s) => (
-                <tr key={s._id}>
-                  <td>{s.dayLabel || DAYS[s.dayOfWeek] || `Thứ ${s.dayOfWeek + 1}`}</td>
-                  <td>{s.startTime} - {s.endTime}</td>
-                  <td>{s.room || '-'}</td>
-                  {canEdit && (
-                  <td>
-                    <button onClick={() => { setEditing(s); setModal('editSchedule'); }}>Sửa</button>
-                    <button className="btn-danger" onClick={() => handleDeleteSchedule(s._id)}>Xóa</button>
-                  </td>
+            {canEdit && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                {cls.totalLessons && cls.scheduledLessons < cls.totalLessons ? (
+                  <button 
+                    className="btn-primary" 
+                    onClick={() => setShowScheduleGenerator(true)}
+                  >
+                    Tạo lịch tự động
+                  </button>
+                ) : cls.totalLessons && cls.scheduledLessons >= cls.totalLessons ? (
+                  <button 
+                    className="btn-primary" 
+                    disabled
+                    style={{ backgroundColor: '#ccc', cursor: 'not-allowed' }}
+                    title="Đã lên lịch đầy đủ"
+                  >
+                    Đã lên lịch đầy đủ
+                  </button>
+                ) : (
+                  <div style={{ color: '#666', fontSize: 14 }}>
+                    Vui lòng cấu hình "Tổng số tiết" cho lớp học để sử dụng tính năng tạo lịch tự động
+                  </div>
                 )}
-                </tr>
-              ))}
+                {schedules.length > 0 && (
+                  <button 
+                    className="btn-danger" 
+                    onClick={() => setConfirm({
+                      title: 'Xóa toàn bộ lịch học',
+                      message: `Bạn có chắc muốn xóa toàn bộ ${schedules.length} lịch học? Hành động này không thể hoàn tác.`,
+                      danger: true,
+                      onConfirm: async () => {
+                        try {
+                          await api.delete(`/classes/${id}/schedules/bulk`);
+                          setConfirm(null);
+                          fetchSchedules();
+                          fetchClass();
+                          toast.success('Đã xóa toàn bộ lịch học');
+                        } catch (error) {
+                          toast.error(error.response?.data?.message || 'Lỗi khi xóa lịch học');
+                        }
+                      },
+                      onCancel: () => setConfirm(null)
+                    })}
+                  >
+                    Xóa toàn bộ lịch học
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Date Filter */}
+          <div className="filters" style={{ marginBottom: '1.5rem', padding: '0 1.5rem' }}>
+            <input
+              type="date"
+              value={scheduleDate}
+              onChange={(e) => setScheduleDate(e.target.value)}
+              style={{ flex: 1, maxWidth: '300px' }}
+            />
+            {scheduleDate && (
+              <button 
+                onClick={() => setScheduleDate('')}
+                style={{ padding: '0.75rem 1rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
+          
+          <table>
+            <thead><tr><th>Thứ</th><th>Ngày</th><th>Giờ</th><th>Phòng</th>{canEdit && <th>Thao tác</th>}</tr></thead>
+            <tbody>
+              {(() => {
+                const filteredSchedules = schedules.filter(s => {
+                  if (!scheduleDate) return true; // Show all if no date selected
+                  
+                  // Compare dates (ignore time)
+                  const scheduleStartDate = new Date(s.startDate);
+                  const filterDate = new Date(scheduleDate);
+                  
+                  return scheduleStartDate.toDateString() === filterDate.toDateString();
+                });
+                
+                const paginatedSchedules = filteredSchedules.slice(
+                  (schedulePage - 1) * schedulesPerPage,
+                  schedulePage * schedulesPerPage
+                );
+                
+                if (filteredSchedules.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={canEdit ? 5 : 4} style={{ textAlign: 'center', padding: 16, color: '#666' }}>
+                        {scheduleDate ? 'Không tìm thấy lịch học vào ngày này' : 'Chưa có lịch học nào'}
+                      </td>
+                    </tr>
+                  );
+                }
+                
+                return paginatedSchedules.map((s) => (
+                  <tr key={s._id}>
+                    <td>{DAYS[s.dayOfWeek]}</td>
+                    <td>{new Date(s.startDate).toLocaleDateString('vi-VN')}</td>
+                    <td>{s.startTime} - {s.endTime}</td>
+                    <td>{s.room || '-'}</td>
+                    {canEdit && (
+                      <td>
+                        <button onClick={() => { setEditing(s); setModal('editSchedule'); }}>Sửa</button>
+                        <button className="btn-danger" onClick={() => handleDeleteSchedule(s._id)}>Xóa</button>
+                      </td>
+                    )}
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
+          {(() => {
+            const filteredSchedules = schedules.filter(s => {
+              if (!scheduleDate) return true;
+              const scheduleStartDate = new Date(s.startDate);
+              const filterDate = new Date(scheduleDate);
+              return scheduleStartDate.toDateString() === filterDate.toDateString();
+            });
+            return filteredSchedules.length > schedulesPerPage && (
+              <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                <button 
+                  onClick={() => setSchedulePage(p => Math.max(1, p - 1))}
+                  disabled={schedulePage === 1}
+                  style={{ padding: '8px 16px' }}
+                >
+                  ← Trước
+                </button>
+                <span>Trang {schedulePage} / {Math.ceil(filteredSchedules.length / schedulesPerPage)}</span>
+                <button 
+                  onClick={() => setSchedulePage(p => Math.min(Math.ceil(filteredSchedules.length / schedulesPerPage), p + 1))}
+                  disabled={schedulePage >= Math.ceil(filteredSchedules.length / schedulesPerPage)}
+                  style={{ padding: '8px 16px' }}
+                >
+                  Sau →
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1095,68 +1517,69 @@ const ClassDetail = () => {
         <>
           {canEdit && <AttendanceStatistics classId={id} refreshTrigger={attendanceSessions.length} />}
           
-          <div className="table-box">
-            <h3>Buổi điểm danh</h3>
-            {user?.role === 'student' ? (
-            <table>
-              <thead><tr><th>Ngày</th><th>Ca</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-              <tbody>
-                {(myAttendance?.sessions || []).map((s) => {
-                  const rec = myAttendance.records.find(r => r.sessionId === s._id);
-                  const statusText = rec ? (rec.status === 'present' ? '✓ Có mặt' : (rec.status === 'late' ? 'Trễ' : '✗ Vắng')) : 'Chưa điểm danh';
-                  return (
-                    <tr key={s._id}>
-                      <td>{new Date(s.date).toLocaleDateString()}</td>
-                      <td>{s.shift || '-'}</td>
-                      <td>{statusText}</td>
-                      <td>
-                        {rec && rec.status === 'present' && (
-                          <span>Đã điểm danh</span>
-                        )}
-                        {rec && rec.status === 'late' && (
-                          <span>Đã điểm danh (trễ)</span>
-                        )}
-                        {rec && rec.status === 'absent' && (
-                          <span>Đã điểm danh (vắng)</span>
-                        )}
-                        {!rec && (
-                          <Link to={`/check-in/${s._id}`}>Điểm danh</Link>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : canEdit && (
-            <table>
-              <thead><tr><th>Ngày</th><th>Ca</th><th>Mã</th><th>Đã điểm danh</th><th>Thao tác</th></tr></thead>
-              <tbody>
-                {attendanceSessions.map((s) => {
-                  const records = sessionRecords[s._id] || [];
-                  const checkedIn = records.filter(r => r.status === 'present');
-                  return (
-                    <tr key={s._id}>
-                      <td>{new Date(s.date).toLocaleDateString()}</td>
-                      <td>{s.shift || '-'}</td>
-                      <td>{s.code || '-'}</td>
-                      <td>
-                        <strong>{checkedIn.length}</strong>/{students.length}
-                        {checkedIn.length > 0 && (
-                          <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
-                            {checkedIn.map(r => r.studentId?.name || r.studentId?.studentCode || '-').join(', ')}
-                          </div>
-                        )}
-                      </td>
-                      <td><Link to={`/classes/${id}/attendance/${s._id}/qr`}>QR</Link></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {user?.role === 'student' && (
+            <div className="table-box">
+              <h3>Điểm danh</h3>
+              <table>
+                <thead><tr><th>Thứ</th><th>Ngày</th><th>Giờ</th><th>Phòng</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                  {schedules
+                    .slice((attendancePage - 1) * attendancePerPage, attendancePage * attendancePerPage)
+                    .map((schedule) => {
+                    // Check if this specific schedule has attendance record for this student
+                    const scheduleIdStr = safeIdToString(schedule._id);
+                    const hasCheckedIn = scheduleIdStr && myAttendance?.records?.some(
+                      record => {
+                        const recordScheduleId = safeIdToString(record.scheduleId);
+                        return recordScheduleId === scheduleIdStr;
+                      }
+                    ) || false;
+                    
+                    return (
+                      <tr key={schedule._id}>
+                        <td>{DAYS[schedule.dayOfWeek]}</td>
+                        <td>{new Date(schedule.startDate).toLocaleDateString('vi-VN')}</td>
+                        <td>{schedule.startTime} - {schedule.endTime}</td>
+                        <td>{schedule.room || '-'}</td>
+                        <td>
+                          {hasCheckedIn ? (
+                            <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ Đã điểm danh</span>
+                          ) : (
+                            <button 
+                              className="btn-primary" 
+                              onClick={handleDirectCheckIn}
+                              style={{ padding: '6px 12px' }}
+                            >
+                              Điểm danh
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {schedules.length > attendancePerPage && (
+                <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                  <button 
+                    onClick={() => setAttendancePage(p => Math.max(1, p - 1))}
+                    disabled={attendancePage === 1}
+                    style={{ padding: '8px 16px' }}
+                  >
+                    ← Trước
+                  </button>
+                  <span>Trang {attendancePage} / {Math.ceil(schedules.length / attendancePerPage)}</span>
+                  <button 
+                    onClick={() => setAttendancePage(p => Math.min(Math.ceil(schedules.length / attendancePerPage), p + 1))}
+                    disabled={attendancePage >= Math.ceil(schedules.length / attendancePerPage)}
+                    style={{ padding: '8px 16px' }}
+                  >
+                    Sau →
+                  </button>
+                </div>
+              )}
+            </div>
           )}
-          {canEdit && <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => setModal('attendanceSession')}>+ Tạo buổi điểm danh</button>}
-        </div>
         </>
       )}
 
@@ -1464,34 +1887,6 @@ const ClassDetail = () => {
           </div>
         </div>
       )}
-      {modal === 'schedule' && (
-        <div className="modal-overlay" onClick={() => setModal(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Thêm lịch học</h3>
-            <form onSubmit={handleCreateSchedule}>
-              <select name="dayOfWeek" required>
-                <option value="1">Thứ 2</option>
-                <option value="2">Thứ 3</option>
-                <option value="3">Thứ 4</option>
-                <option value="4">Thứ 5</option>
-                <option value="5">Thứ 6</option>
-                <option value="6">Thứ 7</option>
-                <option value="0">Chủ nhật</option>
-              </select>
-              <select name="shift" required>
-                <option value="">-- Chọn ca học --</option>
-                <option value="sáng">Ca sáng (8:30 - 11:30)</option>
-                <option value="chiều">Ca chiều (13:30 - 17:00)</option>
-              </select>
-              <input name="room" placeholder="Phòng học" required />
-              <div>
-                <button type="submit">Thêm</button>
-                <button type="button" onClick={() => setModal(null)}>Hủy</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {modal === 'editSchedule' && editing && (
         <div className="modal-overlay" onClick={() => { setModal(null); setEditing(null); }}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -1506,6 +1901,12 @@ const ClassDetail = () => {
                 <option value="6">Thứ 7</option>
                 <option value="0">Chủ nhật</option>
               </select>
+              <input 
+                name="startDate" 
+                type="date" 
+                defaultValue={editing.startDate ? new Date(editing.startDate).toISOString().split('T')[0] : ''} 
+                required 
+              />
               <input name="startTime" type="time" defaultValue={editing.startTime} required />
               <input name="endTime" type="time" defaultValue={editing.endTime} required />
               <input name="room" placeholder="Phòng học" defaultValue={editing.room} />
@@ -1516,6 +1917,33 @@ const ClassDetail = () => {
       )}
       {confirm && (
         <ConfirmModal title={confirm.title} message={confirm.message} danger={confirm.danger} onConfirm={() => confirm.onConfirm()} onCancel={confirm.onCancel} />
+      )}
+      {resetPasswordStudent && (
+        <ResetPasswordModal
+          student={resetPasswordStudent}
+          onClose={() => setResetPasswordStudent(null)}
+          onSuccess={() => {
+            fetchStudents();
+          }}
+        />
+      )}
+
+      {showScheduleGenerator && cls && (
+        <ScheduleGeneratorModal
+          isOpen={showScheduleGenerator}
+          onClose={() => setShowScheduleGenerator(false)}
+          classData={{
+            _id: cls._id,
+            name: cls.name,
+            subjectName: cls.subjectId?.name || '',
+            totalLessons: cls.totalLessons || 0,
+            scheduledLessons: cls.scheduledLessons || 0
+          }}
+          onSchedulesCreated={() => {
+            fetchSchedules();
+            fetchClass();
+          }}
+        />
       )}
     </div>
   );

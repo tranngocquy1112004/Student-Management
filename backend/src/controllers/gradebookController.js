@@ -21,13 +21,37 @@ export const getGradebook = async (req, res) => {
   try {
     const allowed = await canAccessClass(req.user, req.params.classId);
     if (!allowed) return res.status(403).json({ success: false });
-    const gradebook = await Gradebook.find({ classId: req.params.classId, isDeleted: false }).populate('studentId', 'name email studentCode');
-    // lấy danh sách assignments (đã xoá false) và điểm nộp bài của từng sinh viên
+
+    const { page, limit } = req.query;
+    const filter = { classId: req.params.classId, isDeleted: false };
+
+    const { paginate } = await import('../utils/pagination.js');
+    const gradebookResult = await paginate(
+      Gradebook,
+      filter,
+      {
+        page,
+        limit,
+        sort: { createdAt: -1 },
+        populate: { path: 'studentId', select: 'name email studentCode' }
+      }
+    );
+
+    // Get assignments and submissions (not paginated, needed for full context)
     const assignments = await Assignment.find({ classId: req.params.classId, isDeleted: false }).sort({ createdAt: 1 });
     const subs = await Submission.find({ assignmentId: { $in: assignments.map(a => a._id) } })
       .populate('assignmentId', 'title')
       .populate('studentId', 'name studentCode');
-    res.json({ success: true, data: { gradebook, assignments, submissions: subs } });
+
+    res.json({
+      success: true,
+      data: {
+        gradebook: gradebookResult.data,
+        assignments,
+        submissions: subs
+      },
+      pagination: gradebookResult.pagination
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

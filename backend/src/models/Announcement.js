@@ -11,4 +11,10 @@ const announcementSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+// Indexes for pagination performance
+announcementSchema.index({ classId: 1 });
+announcementSchema.index({ isDeleted: 1 });
+announcementSchema.index({ classId: 1, isDeleted: 1 }); // Compound index for fetching class announcements
+announcementSchema.index({ createdAt: -1 }); // For date-based sorting
+
 export default mongoose.model('Announcement', announcementSchema);

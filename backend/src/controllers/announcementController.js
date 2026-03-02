@@ -11,8 +11,23 @@ export const getAnnouncements = async (req, res) => {
       const en = await Enrollment.findOne({ classId: req.params.classId, studentId: req.user._id });
       if (!en) return res.status(403).json({ success: false });
     }
-    const announcements = await Announcement.find({ classId: req.params.classId, isDeleted: false }).populate('teacherId', 'name').sort({ createdAt: -1 });
-    res.json({ success: true, data: announcements });
+
+    const { page, limit } = req.query;
+    const filter = { classId: req.params.classId, isDeleted: false };
+
+    const { paginate } = await import('../utils/pagination.js');
+    const result = await paginate(
+      Announcement,
+      filter,
+      {
+        page,
+        limit,
+        sort: { createdAt: -1 },
+        populate: { path: 'teacherId', select: 'name' }
+      }
+    );
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

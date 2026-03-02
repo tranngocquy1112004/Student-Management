@@ -135,3 +135,82 @@ export const resetPassword = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Teacher/Admin reset student password
+export const resetStudentPassword = async (req, res) => {
+  try {
+    const { id: studentId } = req.params;
+    const { newPassword } = req.body;
+    const requestingUser = req.user;
+
+    // Validation
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu phải có ít nhất 6 ký tự'
+      });
+    }
+
+    // Find student
+    const student = await User.findById(studentId);
+    if (!student || student.isDeleted || student.role !== 'student') {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy sinh viên'
+      });
+    }
+
+    // Authorization check for teachers
+    if (requestingUser.role === 'teacher') {
+      // Import Enrollment model
+      const Enrollment = (await import('../models/Enrollment.js')).default;
+      const Class = (await import('../models/Class.js')).default;
+      
+      const enrollment = await Enrollment.findOne({
+        studentId: studentId
+      }).populate('classId');
+
+      const hasAccess = enrollment && 
+        enrollment.classId.teacherId.toString() === requestingUser._id.toString();
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền đặt lại mật khẩu cho sinh viên này'
+        });
+      }
+    }
+
+    // Update password (will be hashed by pre-save hook)
+    student.password = newPassword;
+    await student.save();
+
+    // Send email notification
+    try {
+      const { sendPasswordResetEmail } = await import('../services/emailService.js');
+      await sendPasswordResetEmail({
+        email: student.email,
+        name: student.name,
+        newPassword: newPassword
+      });
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Continue even if email fails
+    }
+
+    // Audit log
+    console.log(`[AUDIT] Password reset - Teacher: ${requestingUser._id}, Student: ${studentId}, Time: ${new Date().toISOString()}`);
+
+    res.json({
+      success: true,
+      message: 'Đặt lại mật khẩu thành công'
+    });
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi đặt lại mật khẩu'
+    });
+  }
+};

@@ -3,6 +3,15 @@ import * as userController from '../controllers/userController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Teacher/Admin can reset student password (must be before admin-only routes)
+router.post('/:id/reset-password', 
+  protect, 
+  authorize('teacher', 'admin'), 
+  userController.resetStudentPassword
+);
+
+// Admin-only routes
 router.use(protect);
 router.use(authorize('admin'));
 router.get('/', userController.getUsers);
