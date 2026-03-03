@@ -30,6 +30,7 @@ import expulsionRoutes from './routes/expulsionRoutes.js';
 import warningRoutes from './routes/warningRoutes.js';
 import violationRoutes from './routes/violationRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import { initSocket } from './socket.js';
 
 connectDB();
@@ -70,6 +71,7 @@ app.use('/api', expulsionRoutes);
 app.use('/api', warningRoutes);
 app.use('/api', violationRoutes);
 app.use('/api', statisticsRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

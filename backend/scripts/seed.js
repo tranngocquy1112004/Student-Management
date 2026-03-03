@@ -16,7 +16,9 @@ const seed = async () => {
 
   const admin = await User.create({ name: 'Admin', email: 'admin@school.vn', password: '123456', role: 'admin' });
   const teacher = await User.create({ name: 'Nguyễn Văn Giảng', email: 'giangvien@school.vn', password: '123456', role: 'teacher', teacherCode: 'GV001' });
+  const teacher2 = await User.create({ name: 'Trần Thị Hoa', email: 'giangvien2@school.vn', password: '123456', role: 'teacher', teacherCode: 'GV002' });
   const student = await User.create({ name: 'Trần Văn Học', email: 'sinhvien@school.vn', password: '123456', role: 'student', studentCode: 'SV001' });
+  const student2 = await User.create({ name: 'Lê Thị Mai', email: 'sinhvien2@school.vn', password: '123456', role: 'student', studentCode: 'SV002' });
 
   const faculty = await Faculty.create({ name: 'Công nghệ thông tin', code: 'CNTT' });
   const subject = await Subject.create({ name: 'Lập trình Web', code: 'LTW', credits: 3, facultyId: faculty._id });
@@ -32,8 +34,10 @@ const seed = async () => {
 
   console.log('Seed completed!');
   console.log('Admin: admin@school.vn / 123456');
-  console.log('Teacher: giangvien@school.vn / 123456');
-  console.log('Student: sinhvien@school.vn / 123456');
+  console.log('Teacher 1: giangvien@school.vn / 123456');
+  console.log('Teacher 2: giangvien2@school.vn / 123456');
+  console.log('Student 1: sinhvien@school.vn / 123456');
+  console.log('Student 2: sinhvien2@school.vn / 123456');
   process.exit(0);
 };
 

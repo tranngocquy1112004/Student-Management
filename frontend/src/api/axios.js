@@ -15,9 +15,21 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
-    if (err.response?.status === 401 && !err.config._retry) {
+    // Handle network errors (no response from server)
+    if (!err.response) {
+      console.error('Network error:', err.message);
+      // Don't show toast here - let individual components handle it
+      return Promise.reject(err);
+    }
+
+    const { status, data } = err.response;
+    const errorMessage = data?.error?.message || data?.message;
+
+    // Handle 401 Unauthorized - Try to refresh token or redirect to login
+    if (status === 401 && !err.config._retry) {
       err.config._retry = true;
       const refresh = localStorage.getItem('refreshToken');
+      
       if (refresh) {
         try {
           const { data } = await axios.post(baseURL + '/auth/refresh-token', { refreshToken: refresh });
@@ -25,14 +37,41 @@ api.interceptors.response.use(
           localStorage.setItem('refreshToken', data.data.refreshToken);
           err.config.headers.Authorization = `Bearer ${data.data.accessToken}`;
           return api(err.config);
-        } catch (_) {
+        } catch (refreshError) {
+          // Refresh failed - clear storage and redirect to login
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
           window.location.href = '/login';
+          return Promise.reject(refreshError);
         }
+      } else {
+        // No refresh token - redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
       }
     }
+
+    // Handle 403 Forbidden - Permission denied
+    if (status === 403) {
+      console.error('Permission denied:', errorMessage);
+      // Error message will be shown by individual components
+    }
+
+    // Handle 404 Not Found
+    if (status === 404) {
+      console.error('Resource not found:', errorMessage);
+      // Error message will be shown by individual components
+    }
+
+    // Handle 500 Server Error
+    if (status === 500) {
+      console.error('Server error:', errorMessage);
+      // Error message will be shown by individual components
+    }
+
     return Promise.reject(err);
   }
 );

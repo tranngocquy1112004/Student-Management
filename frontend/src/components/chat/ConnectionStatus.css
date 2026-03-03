@@ -1,0 +1,62 @@
+.connection-status {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.connection-status-disconnected {
+  background-color: #fee;
+  color: #c00;
+  border: 1px solid #fcc;
+}
+
+.connection-status-reconnecting {
+  background-color: #ffc;
+  color: #860;
+  border: 1px solid #fea;
+}
+
+.connection-status-error {
+  background-color: #fee;
+  color: #c00;
+  border: 1px solid #fcc;
+}
+
+.connection-status-icon {
+  font-size: 16px;
+}
+
+.connection-status-text {
+  white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .connection-status {
+    top: 60px;
+    right: 10px;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}

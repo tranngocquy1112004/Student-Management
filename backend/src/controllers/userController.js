@@ -143,6 +143,8 @@ export const resetStudentPassword = async (req, res) => {
     const { newPassword } = req.body;
     const requestingUser = req.user;
 
+    console.time('resetPassword');
+
     // Validation
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({
@@ -152,7 +154,10 @@ export const resetStudentPassword = async (req, res) => {
     }
 
     // Find student
+    console.time('findStudent');
     const student = await User.findById(studentId);
+    console.timeEnd('findStudent');
+    
     if (!student || student.isDeleted || student.role !== 'student') {
       return res.status(404).json({
         success: false,
@@ -160,46 +165,63 @@ export const resetStudentPassword = async (req, res) => {
       });
     }
 
-    // Authorization check for teachers
+    // Authorization check for teachers (optimized query)
     if (requestingUser.role === 'teacher') {
-      // Import Enrollment model
+      console.time('authCheck');
       const Enrollment = (await import('../models/Enrollment.js')).default;
       const Class = (await import('../models/Class.js')).default;
       
+      // Optimized: Only get classId, not populate
       const enrollment = await Enrollment.findOne({
         studentId: studentId
-      }).populate('classId');
+      }).select('classId').lean();
 
-      const hasAccess = enrollment && 
-        enrollment.classId.teacherId.toString() === requestingUser._id.toString();
+      if (!enrollment) {
+        console.timeEnd('authCheck');
+        return res.status(403).json({
+          success: false,
+          message: 'Sinh viên chưa đăng ký lớp nào'
+        });
+      }
 
-      if (!hasAccess) {
+      // Check if teacher owns the class
+      const classDoc = await Class.findById(enrollment.classId).select('teacherId').lean();
+      
+      if (!classDoc || classDoc.teacherId.toString() !== requestingUser._id.toString()) {
+        console.timeEnd('authCheck');
         return res.status(403).json({
           success: false,
           message: 'Bạn không có quyền đặt lại mật khẩu cho sinh viên này'
         });
       }
+      console.timeEnd('authCheck');
     }
 
     // Update password (will be hashed by pre-save hook)
+    console.time('savePassword');
     student.password = newPassword;
     await student.save();
+    console.timeEnd('savePassword');
 
-    // Send email notification
-    try {
-      const { sendPasswordResetEmail } = await import('../services/emailService.js');
-      await sendPasswordResetEmail({
-        email: student.email,
-        name: student.name,
-        newPassword: newPassword
-      });
-    } catch (emailError) {
-      console.error('Failed to send password reset email:', emailError);
-      // Continue even if email fails
-    }
+    // Send email notification asynchronously (don't wait)
+    setImmediate(async () => {
+      try {
+        const { sendPasswordResetEmail } = await import('../services/emailService.js');
+        await sendPasswordResetEmail({
+          email: student.email,
+          name: student.name,
+          newPassword: newPassword
+        });
+        console.log(`✅ Password reset email sent to ${student.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send password reset email:', emailError.message);
+      }
+    });
 
     // Audit log
-    console.log(`[AUDIT] Password reset - Teacher: ${requestingUser._id}, Student: ${studentId}, Time: ${new Date().toISOString()}`);
+    console.log(`[AUDIT] Password reset - User: ${requestingUser.email}, Student: ${student.email}, Time: ${new Date().toISOString()}`);
+
+    console.timeEnd('resetPassword');
 
     res.json({
       success: true,
@@ -207,7 +229,7 @@ export const resetStudentPassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Password reset error:', error);
+    console.error('❌ Password reset error:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi khi đặt lại mật khẩu'

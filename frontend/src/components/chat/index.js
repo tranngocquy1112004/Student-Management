@@ -1,0 +1,12 @@
+// Export all chat components for easier imports
+export { default as ChatLayout } from './ChatLayout';
+export { default as ChatWindow } from './ChatWindow';
+export { default as ConversationList } from './ConversationList';
+export { default as ConversationItem } from './ConversationItem';
+export { default as MessageList } from './MessageList';
+export { default as MessageItem } from './MessageItem';
+export { default as MessageInput } from './MessageInput';
+export { default as TypingIndicator } from './TypingIndicator';
+export { default as OnlineStatus } from './OnlineStatus';
+export { default as ConnectionStatus } from './ConnectionStatus';
+export { default as UserSearch } from './UserSearch';

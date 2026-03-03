@@ -4,6 +4,18 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Clear localStorage on dev server start (only in development mode)
+if (process.env.NODE_ENV === 'development') {
+  // Check if this is a fresh start (not a hot reload)
+  const isFirstLoad = !sessionStorage.getItem('dev_session_started');
+  
+  if (isFirstLoad) {
+    console.log('🔄 Development mode: Clearing localStorage for fresh start');
+    localStorage.clear();
+    sessionStorage.setItem('dev_session_started', 'true');
+  }
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

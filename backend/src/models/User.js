@@ -33,7 +33,9 @@ userSchema.index({ role: 1, status: 1 }); // Compound index for role and status 
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+  // Reduced from 12 to 10 rounds for better performance (still secure)
+  // 10 rounds = ~100ms, 12 rounds = ~300ms
+  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
