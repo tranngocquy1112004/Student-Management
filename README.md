@@ -668,6 +668,19 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 |--------|----------|------|------|-------|
 | GET | `/admin/statistics/expulsions` | ✅ | Admin | Thống kê đuổi học |
 
+### Chat (`/api/chat`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/chat/conversations` | ✅ | All | Danh sách cuộc trò chuyện |
+| POST | `/chat/conversations` | ✅ | All | Tạo cuộc trò chuyện mới |
+| GET | `/chat/conversations/:id` | ✅ | All | Chi tiết cuộc trò chuyện |
+| GET | `/chat/conversations/:id/messages` | ✅ | All | Danh sách tin nhắn |
+| POST | `/chat/conversations/:id/read` | ✅ | All | Đánh dấu đã đọc |
+| GET | `/chat/users/search` | ✅ | All | Tìm kiếm người dùng |
+| GET | `/chat/unread-count` | ✅ | All | Số tin nhắn chưa đọc |
+| GET | `/chat/online-users` | ✅ | All | Danh sách người dùng online |
+
 ### Dashboard (`/api/dashboard`)
 
 | Method | Endpoint | Auth | Role | Mô tả |
@@ -750,6 +763,16 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 - ✅ Real-time với Socket.io
 - ✅ Đánh dấu đã đọc/chưa đọc
 - ✅ Tìm kiếm thông báo
+- ✅ Broadcast thông báo toàn hệ thống (Admin)
+
+### Chat & Nhắn tin
+- ✅ Chat real-time giữa người dùng
+- ✅ Tạo cuộc trò chuyện 1-1
+- ✅ Tìm kiếm người dùng để chat
+- ✅ Hiển thị trạng thái online/offline
+- ✅ Đánh dấu tin nhắn đã đọc
+- ✅ Hiển thị số tin nhắn chưa đọc
+- ✅ Real-time với Socket.io
 
 ### Quản lý bảo lưu
 - ✅ Sinh viên gửi yêu cầu bảo lưu
@@ -791,9 +814,26 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 - ✅ Tìm kiếm sinh viên (tên, MSSV, email)
 - ✅ Tìm kiếm bài tập (tiêu đề)
 - ✅ Tìm kiếm thông báo (tiêu đề, nội dung)
+- ✅ Tìm kiếm người dùng để chat
 - ✅ Lọc lịch học theo ngày
 - ✅ Phân trang cho tất cả danh sách
 
+### File Management
+- ✅ Upload avatar người dùng
+- ✅ Upload file đính kèm bài tập
+- ✅ Upload file bài nộp sinh viên
+- ✅ Upload file bằng chứng vi phạm
+- ✅ Upload file đính kèm quyết định đuổi học
+- ✅ Import CSV sinh viên
+- ✅ Export Excel bảng điểm
+- ✅ Validation file type và size
+
+### Real-time Features
+- ✅ Real-time notifications với Socket.io
+- ✅ Real-time chat messages
+- ✅ Real-time online status
+- ✅ Real-time typing indicators
+- ✅ Auto-refresh dashboard data
 
 ## Cấu trúc Database
 
@@ -825,22 +865,31 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 - Học kỳ: name, academicYear, startDate, endDate
 
 #### Classes
-- Lớp học: name, code, subject, teacher, semester, maxStudents, status
+- Lớp học: name, code, subject, teacher, semester, status
+- Giới hạn số lượng sinh viên
+- Trạng thái: active, completed, cancelled
 
 #### Enrollments
-- Đăng ký lớp: student, class, enrollmentDate, status
+- Đăng ký lớp học: student, class, status
+- Trạng thái: enrolled, on_leave, dismissed, suspended
 
 #### Assignments
-- Bài tập: class, title, description, type, dueDate, maxScore, status, questions
+- Bài tập: title, description, class, dueDate, maxScore, type
+- Loại: essay, multiple_choice
+- Trạng thái: draft, published, closed
+
+#### Questions
+- Câu hỏi trắc nghiệm: assignment, question, options, correctAnswer
 
 #### Submissions
-- Bài nộp: assignment, student, files, answers, score, feedback, status
+- Bài nộp: assignment, student, content, score, feedback
+- File đính kèm, thời gian nộp
 
-#### Gradebook
-- Bảng điểm: class, student, attendanceScore, midtermScore, finalScore, totalScore
+#### Gradebooks
+- Bảng điểm: student, class, attendance, midterm, final, total
 
 #### AttendanceSessions
-- Buổi điểm danh: class, date, startTime, endTime, code, qrCode
+- Buổi điểm danh: class, date, room, code, qrCode
 
 #### AttendanceRecords
 - Bản ghi điểm danh: session, student, status, checkInTime
@@ -849,109 +898,293 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 - Lịch học: class, dayOfWeek, startDate, startTime, endTime, room
 
 #### Announcements
-- Thông báo lớp: class, title, content, createdBy
+- Thông báo lớp: class, title, content, teacher
 
 #### Notifications
-- Thông báo hệ thống: user, title, message, type, isRead
+- Thông báo hệ thống: user, title, content, type, isRead
 
 #### AcademicLeave
-- Bảo lưu: student, reason, startDate, endDate, status, approvedBy
+- Yêu cầu bảo lưu: student, reason, startDate, endDate, status
 
-#### ExpulsionRecord
-- Quyết định đuổi học: student, reason, effectiveDate, attachments, status, appeal
+#### AcademicWarnings
+- Cảnh cáo học tập: student, class, type, level, reason
 
-#### AcademicWarning
-- Cảnh cáo học tập: student, class, type, severity, reason, issuedDate
+#### AttendanceWarnings
+- Cảnh cáo điểm danh: student, class, level, absenceRate
 
-#### AttendanceWarning
-- Cảnh cáo điểm danh: student, class, severity, reason, issuedDate
+#### ViolationReports
+- Báo cáo vi phạm: student, teacher, type, severity, description
+- File bằng chứng, trạng thái xử lý
 
-#### ViolationReport
-- Báo cáo vi phạm: student, reportedBy, class, violationType, severity, description, evidence, status
+#### ExpulsionRecords
+- Quyết định đuổi học: student, reason, effectiveDate, status
+- File đính kèm, thông tin kháng cáo
 
-## Lưu ý kỹ thuật
+#### Otp
+- Mã OTP: email, code, expiresAt, isUsed
 
-### MongoDB Standalone Mode
-- Hệ thống chạy MongoDB ở chế độ standalone (không phải replica set)
-- KHÔNG sử dụng transactions
-- Tất cả operations đều là atomic ở document level
+#### Conversations
+- Cuộc trò chuyện: participants, lastMessage, createdAt
 
-### File Upload
-- Avatar: PNG, JPG, JPEG, GIF - Max 5MB
-- Assignment files: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX - Max 10MB
-- Submission files: Tương tự assignment files
-- Evidence files: PNG, JPG, JPEG, PDF - Max 5MB mỗi file, tối đa 5 files
+#### Messages
+- Tin nhắn: conversation, sender, content, readAt
 
-### Email Service
-- Sử dụng Nodemailer với SMTP
-- Gửi OTP cho forgot password
-- Gửi thông báo khi có quyết định kỷ luật
-- Cấu hình trong file .env
+### Mối quan hệ giữa Collections
 
-### Real-time Features
-- Socket.io cho notifications
-- Tự động push notification khi có sự kiện mới
-- Client tự động reconnect khi mất kết nối
+#### User Relationships
+- User → Student (1:1) - Thông tin sinh viên
+- User → Teacher (1:1) - Thông tin giảng viên
+- Student → Faculty (N:1) - Sinh viên thuộc khoa
+- Teacher → Faculty (N:1) - Giảng viên thuộc khoa
 
-### Middleware
-- `protect`: Xác thực JWT token
-- `authorize(roles)`: Kiểm tra role
-- `checkExpelledStatus`: Chặn sinh viên bị đuổi học
-- `checkStudentNotOnLeave`: Chặn sinh viên bảo lưu
-- `sanitizeBody`: Làm sạch input chống XSS
-- `validate(schema)`: Validate request body
+#### Academic Structure
+- Subject → Faculty (N:1) - Môn học thuộc khoa
+- AcademicYear → Semesters (1:N) - Năm học có nhiều học kỳ
+- Semester → Classes (1:N) - Học kỳ có nhiều lớp
+- Class → Subject (N:1) - Lớp học thuộc môn học
+- Class → Teacher (N:1) - Lớp học có giảng viên phụ trách
+
+#### Enrollment & Learning
+- Class → Enrollments (1:N) - Lớp có nhiều sinh viên đăng ký
+- Student → Enrollments (1:N) - Sinh viên đăng ký nhiều lớp
+- Class → Assignments (1:N) - Lớp có nhiều bài tập
+- Assignment → Submissions (1:N) - Bài tập có nhiều bài nộp
+- Assignment → Questions (1:N) - Bài tập có nhiều câu hỏi (trắc nghiệm)
+- Class → Gradebook (1:N) - Lớp có bảng điểm cho từng sinh viên
+- Class → Schedules (1:N) - Lớp có nhiều lịch học
+- Class → Announcements (1:N) - Lớp có nhiều thông báo
+
+#### Attendance System
+- Class → AttendanceSessions (1:N) - Lớp có nhiều buổi điểm danh
+- AttendanceSession → AttendanceRecords (1:N) - Buổi điểm danh có nhiều bản ghi
+
+#### Communication
+- User → Notifications (1:N) - Người dùng nhận nhiều thông báo
+- Conversations → Messages (1:N) - Cuộc trò chuyện có nhiều tin nhắn
+- Conversations → Users (N:M) - Cuộc trò chuyện có nhiều người tham gia
+
+#### Discipline System
+- Student → AcademicWarnings (1:N) - Sinh viên có nhiều cảnh cáo học tập
+- Student → AttendanceWarnings (1:N) - Sinh viên có nhiều cảnh cáo điểm danh
+- Student → ViolationReports (1:N) - Sinh viên có nhiều báo cáo vi phạm
+- Student → ExpulsionRecords (1:N) - Sinh viên có thể có quyết định đuổi học
+- Student → AcademicLeave (1:N) - Sinh viên có thể có yêu cầu bảo lưu
+
+## Quy trình nghiệp vụ chi tiết
+
+### 1. Quy trình Đăng ký & Quản lý Lớp học
+
+#### Bước 1: Admin tạo cấu trúc học tập
+1. **Tạo Khoa**: Admin tạo các khoa với thông tin cơ bản
+2. **Tạo Môn học**: Admin tạo môn học thuộc các khoa
+3. **Tạo Năm học**: Admin tạo năm học (2024-2025)
+4. **Tạo Học kỳ**: Admin tạo học kỳ trong năm học (HK1, HK2, HK3)
+
+#### Bước 2: Admin tạo Lớp học
+1. **Chọn học kỳ** đang hoạt động
+2. **Nhập thông tin lớp**: tên, mã lớp, môn học, giảng viên
+3. **Thiết lập giới hạn** số lượng sinh viên
+4. **Trạng thái lớp** mặc định là "active"
+
+#### Bước 3: Admin thêm sinh viên vào lớp
+1. **Thêm thủ công**: chọn từng sinh viên
+2. **Import CSV**: upload file danh sách sinh viên
+3. **Xác nhận đăng ký**: hệ thống tạo enrollment records
+
+### 2. Quy trình Quản lý Bài tập & Nộp bài
+
+#### Teacher tạo bài tập
+1. **Chọn lớp học** và nhập thông tin bài tập
+2. **Loại bài tập**: essay hoặc multiple_choice
+3. **Đính kèm tài liệu** (PDF, DOCX, PPT)
+4. **Thiết lập hạn nộp** và điểm tối đa
+5. **Trạng thái**: draft → published → closed
+
+#### Sinh viên nộp bài
+1. **Xem danh sách bài tập** trong lớp
+2. **Tải tài liệu** và làm bài
+3. **Nộp bài** trước hạn với file đính kèm
+4. **Nộp lại** nếu cần (ghi nhận lần nộp cuối)
+
+#### Teacher chấm điểm
+1. **Xem danh sách bài nộp**
+2. **Tự động chấm** bài trắc nghiệm
+3. **Chấm thủ công** bài essay với điểm và nhận xét
+4. **Sinh viên nhận thông báo** khi bài được chấm
+
+### 3. Quy trình Điểm danh
+
+#### Teacher tạo buổi điểm danh
+1. **Kiểm tra lịch học** hợp lệ (không trùng)
+2. **Tạo buổi điểm danh** với thông tin: ngày, tiết, phòng
+3. **Chọn phương thức**: QR Code, mã số, thủ công, trực tiếp
+
+#### Sinh viên điểm danh
+1. **QR Code**: quét mã từ teacher
+2. **Mã số**: nhập 6 số từ teacher
+3. **Trực tiếp**: điểm danh dựa vào lịch học
+4. **Thủ công**: teacher điểm danh trực tiếp
+
+#### Hệ thống xử lý
+1. **Ghi nhận thời gian** điểm danh
+2. **Cập nhật trạng thái**: present, absent, late, excused
+3. **Tính tỷ lệ điểm danh** tự động
+4. **Tạo cảnh cáo** nếu vắng >20%
+
+### 4. Quy trình Quản lý Bảng điểm
+
+#### Teacher nhập điểm
+1. **Nhập điểm từng sinh viên** hoặc hàng loạt
+2. **Các cột điểm**: Chuyên cần (10%), Giữa kỳ (30%), Cuối kỳ (60%)
+3. **Tự động tính** điểm tổng kết
+4. **Khóa điểm** sau khi hoàn thành
+
+#### Xuất báo cáo
+1. **Xuất Excel** bảng điểm chi tiết
+2. **Bao gồm**: MSSV, Họ tên, các cột điểm, tổng kết
+3. **Sinh viên xem điểm** của mình trong từng lớp
+
+### 5. Quy trình Kỷ luật & Đuổi học
+
+#### Tự động cảnh cáo
+1. **Cảnh cáo học tập**: điểm tổng kết <4.0 (low), <2.0 (critical)
+2. **Cảnh cáo điểm danh**: vắng >20% (medium), >30% (high)
+3. **Ghi nhận vào hồ sơ** sinh viên
+
+#### Teacher báo cáo vi phạm
+1. **Tạo báo cáo** với loại vi phạm và mức độ
+2. **Đính kèm bằng chứng** (tối đa 5 file)
+3. **Admin xem xét** báo cáo
+
+#### Quyết định đuổi học
+1. **Admin tạo quyết định** với lý do và ngày hiệu lực
+2. **Hạn chế truy cập** sinh viên bị đuổi
+3. **Sinh viên gửi kháng cáo** nếu cần
+4. **Admin xử lý kháng cáo**: chấp nhận hoặc từ chối
+
+### 6. Quy trình Bảo lưu
+
+#### Sinh viên gửi yêu cầu
+1. **Điền đơn** với lý do và thời gian bảo lưu
+2. **Admin xem xét** yêu cầu
+3. **Phê duyệt/Từ chối** với lý do
+
+#### Hạn chế truy cập
+1. **Sinh viên bảo lưu** không thể:
+   - Xem chi tiết lớp học
+   - Nộp bài tập
+   - Điểm danh
+   - Xem bảng điểm chi tiết
+2. **Vẫn có thể**: đăng nhập, xem danh sách lớp, xem trạng thái bảo lưu
+
+#### Kết thúc bảo lưu
+1. **Tự động cập nhật** khi hết hạn
+2. **Admin có thể** kết thúc sớm
+3. **Khôi phục quyền truy cập** sinh viên
+
+### 7. Quy trình Thông báo & Chat
+
+#### Thông báo hệ thống
+1. **Tự động tạo** khi có sự kiện:
+   - Bài tập mới
+   - Điểm mới
+   - Bài nộp được chấm
+   - Cảnh cáo
+   - Quyết định kỷ luật
+2. **Real-time** qua Socket.io
+3. **Đánh dấu đã đọc/chưa đọc**
+
+#### Chat real-time
+1. **Tìm kiếm người dùng** để chat
+2. **Tạo cuộc trò chuyện** 1-1
+3. **Real-time messages** với typing indicators
+4. **Online status** và unread count
+
+## Security & Performance
+
+### Authentication & Authorization
+- **JWT Access Token**: 15 phút expiry
+- **JWT Refresh Token**: 7 ngày expiry
+- **Role-based Access Control**: Admin, Teacher, Student
+- **Middleware Protection**: protect, authorize, checkExpelledStatus
+- **Password Security**: bcrypt hashing (10 rounds)
+
+### Input Validation & Sanitization
+- **Joi Validation**: Schema validation cho tất cả inputs
+- **XSS Protection**: xss library sanitize HTML content
+- **File Upload Validation**: Type và size limits
+- **SQL Injection Prevention**: Mongoose ODM protection
+
+### Rate Limiting
+- **Global Rate Limit**: 100 requests/15 phút (production)
+- **Login Rate Limit**: 20 requests/15 phút
+- **Development Mode**: 1000 requests/15 phút
+
+### Security Headers
+- **Helmet.js**: HTTP headers security
+- **CORS Configuration**: Cross-origin resource sharing
+- **Content Security Policy**: Prevent XSS attacks
+
+### Performance Optimization
+- **Database Indexing**: Tối ưu query performance
+- **Pagination**: Giảm load cho large datasets
+- **File Compression**: Optimize file uploads
+- **Caching Strategy**: Redis cho session management
+- **Lazy Loading**: Components và data
 
 ### Error Handling
-- Centralized error handler
-- Custom error codes: ACCOUNT_DISMISSED, ACCOUNT_ON_LEAVE
-- HTTP status codes chuẩn
-- Vietnamese error messages
+- **Global Error Handler**: Centralized error processing
+- **Custom Error Classes**: Specific error types
+- **Error Logging**: Track và monitor errors
+- **User-friendly Messages**: Clear error communication
 
-## Deployment
+## Testing & Deployment
 
-### Production Checklist
-- [ ] Đổi tất cả mật khẩu mặc định
-- [ ] Cấu hình CORS cho domain production
-- [ ] Cấu hình rate limiting phù hợp
-- [ ] Setup MongoDB với authentication
-- [ ] Cấu hình email service với credentials thật
-- [ ] Setup HTTPS với SSL certificate
-- [ ] Cấu hình environment variables
-- [ ] Setup backup database định kỳ
-- [ ] Monitor logs và errors
-- [ ] Setup CDN cho static files
+### Testing Strategy
+- **Unit Tests**: Jest cho individual functions
+- **Integration Tests**: API endpoint testing
+- **Property-based Testing**: Fast-check for edge cases
+- **Test Coverage**: Monitor code coverage
 
-### Environment Variables
+### Environment Configuration
+- **Development**: Local MongoDB, hot reload
+- **Production**: MongoDB Atlas, optimized build
+- **Environment Variables**: Secure configuration
+- **Docker Support**: Containerized deployment
 
-#### Backend (.env)
-```env
-PORT=5000
-NODE_ENV=production
-MONGO_URI=mongodb://localhost:27017/school_management
-JWT_SECRET=your_strong_jwt_secret
-JWT_REFRESH_SECRET=your_strong_refresh_secret
-JWT_EXPIRE=15m
-JWT_REFRESH_EXPIRE=7d
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_app_password
-EMAIL_FROM=School Management <noreply@school.vn>
-FRONTEND_URL=http://localhost:3000
-```
+### Monitoring & Logging
+- **Application Logs**: Track user activities
+- **Error Monitoring**: Real-time error tracking
+- **Performance Metrics**: Monitor response times
+- **Database Queries**: Optimize slow queries
 
-#### Frontend (.env)
-```env
-REACT_APP_API_URL=http://localhost:5000/api
-```
+---
 
-## Hỗ trợ
+## Tổng kết
 
-Nếu gặp vấn đề, vui lòng:
-1. Kiểm tra MongoDB đã chạy chưa
-2. Kiểm tra file .env đã cấu hình đúng chưa
-3. Xem logs trong console để debug
-4. Đảm bảo đã chạy `npm run seed` để tạo dữ liệu mẫu
+Hệ thống Quản Lý Lớp Học này là một giải pháp toàn diện cho việc quản lý giáo dục, được xây dựng với kiến trúc MERN Stack hiện đại và các best practices về security, performance, và scalability.
+
+### Điểm nổi bật:
+- **Phân quyền chi tiết** với 3 vai trò (Admin, Teacher, Student)
+- **Quy trình nghiệp vụ hoàn chỉnh** từ quản lý lớp học đến kỷ luật sinh viên
+- **Real-time features** với Socket.io cho notifications và chat
+- **Security多层次** với JWT, rate limiting, input validation
+- **Responsive UI/UX** với modern design và animations
+- **Comprehensive API** với 100+ endpoints
+- **Database structure** được thiết kế tối ưu với relationships rõ ràng
+- **Business logic** tự động hóa cho cảnh cáo và kỷ luật
+- **File management** với upload/download và validation
+- **Testing & monitoring** cho production readiness
+
+### Công nghệ sử dụng:
+- **Backend**: Node.js, Express.js, MongoDB, Socket.io
+- **Frontend**: React.js, CSS3, Axios
+- **Security**: JWT, bcrypt, Helmet, CORS, Rate Limiting
+- **Testing**: Jest, Fast-check
+- **File Processing**: Multer, ExcelJS
+- **Real-time**: Socket.io, Redis
+
+Hệ thống đã sẵn sàng cho deployment và có thể mở rộng để phục vụ các trường học với quy mô lớn.
 
 ## License
 

@@ -20,28 +20,27 @@
 }
 
 .online-status.online .status-dot {
-  background: #10b981;
-  box-shadow: 0 0 4px rgba(16, 185, 129, 0.6);
+  background: #16a34a;
+  box-shadow: 0 0 6px rgba(22, 163, 74, 0.6);
   animation: pulse 2s infinite;
 }
 
 .online-status.offline .status-dot {
-  background: #94a3b8;
+  background: var(--text-tertiary);
 }
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 4px rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 4px rgba(22, 163, 74, 0.6);
   }
   50% {
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+    box-shadow: 0 0 10px rgba(22, 163, 74, 0.8);
   }
   100% {
-    box-shadow: 0 0 4px rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 4px rgba(22, 163, 74, 0.6);
   }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .online-status {
     width: 12px;

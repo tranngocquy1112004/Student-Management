@@ -20,19 +20,18 @@
   padding-left: 12px;
 }
 
-/* Accessibility: Focus indicators with high contrast */
 .conversation-item:focus,
 .conversation-item.focused {
   outline: 3px solid var(--primary);
   outline-offset: -3px;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
   z-index: 1;
 }
 
 .conversation-item:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: -3px;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
 }
 
 .conversation-avatar {
@@ -57,7 +56,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
   color: white;
   font-weight: 600;
   font-size: 1.25rem;
@@ -83,7 +82,7 @@
 
 .conversation-name {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
@@ -117,7 +116,7 @@
 
 .conversation-item.active .conversation-message {
   color: var(--primary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .unread-badge {
@@ -127,7 +126,7 @@
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
   color: white;
   border-radius: 10px;
   font-size: 0.75rem;
@@ -136,7 +135,6 @@
   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
-/* Animation for new conversations */
 .conversation-item {
   animation: slideInLeft 0.3s ease-out;
 }
@@ -152,7 +150,6 @@
   }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .conversation-item {
     padding: 10px 12px;

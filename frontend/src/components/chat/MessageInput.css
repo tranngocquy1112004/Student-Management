@@ -14,7 +14,7 @@
   flex: 1;
   padding: 12px 16px;
   border: 2px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-family: inherit;
   background: var(--bg-primary);
@@ -29,15 +29,14 @@
 .message-textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
 }
 
-/* Accessibility: High contrast focus indicator */
 .message-textarea:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
 }
 
 .message-textarea:disabled {
@@ -56,7 +55,7 @@
   height: 44px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
   color: white;
   font-size: 1.25rem;
   cursor: pointer;
@@ -64,24 +63,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 6px 14px rgba(15, 118, 110, 0.3);
   outline: none;
 }
 
 .send-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 10px 18px rgba(15, 118, 110, 0.35);
 }
 
 .send-button:active:not(:disabled) {
   transform: translateY(0);
 }
 
-/* Accessibility: Focus indicator for send button */
 .send-button:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.3);
 }
 
 .send-button:disabled {
@@ -102,7 +100,7 @@
 .char-counter {
   font-size: 0.75rem;
   color: var(--text-tertiary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .char-counter.over-limit {
@@ -113,10 +111,9 @@
 .connection-warning {
   font-size: 0.75rem;
   color: var(--warning);
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .message-input {
     padding: 12px 16px;

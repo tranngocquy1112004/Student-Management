@@ -43,9 +43,7 @@
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 .no-more-messages {
@@ -82,13 +80,12 @@
   padding: 0 16px;
   font-size: 0.75rem;
   color: var(--text-tertiary);
-  font-weight: 500;
+  font-weight: 600;
   background: var(--bg-primary);
   border-radius: 12px;
   white-space: nowrap;
 }
 
-/* Scrollbar styling */
 .message-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -106,12 +103,10 @@
   background: var(--text-tertiary);
 }
 
-/* Smooth scroll behavior */
 .message-list {
   scroll-behavior: smooth;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .message-list {
     padding: 16px 12px;

@@ -10,7 +10,23 @@
     "seed": "node scripts/seed.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js src/__tests__/unit",
+    "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js src/__tests__/integration",
+    "test:property": "node --experimental-vm-modules node_modules/jest/bin/jest.js src/__tests__/property",
+    "test:attendance": "node run-simple-tests.js",
+    "test:attendance:simple": "node run-simple-tests.js",
+    "test:attendance:full": "node run-attendance-tests.js",
+    "test:attendance:unit": "node run-attendance-tests.js unit",
+    "test:attendance:integration": "node run-attendance-tests.js integration",
+    "test:attendance:property": "node run-attendance-tests.js property",
+    "test:case": "node test-runner.js",
+    "test:tc20": "node test-runner.js TC-20",
+    "test:tc21": "node test-runner.js TC-21",
+    "test:tc22": "node test-runner.js TC-22",
+    "test:tc23": "node test-runner.js TC-23",
+    "test:tc24": "node test-runner.js TC-24",
+    "test:tc25": "node test-runner.js TC-25"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -35,6 +51,7 @@
   "devDependencies": {
     "fast-check": "^4.5.3",
     "jest": "^30.2.0",
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "supertest": "^7.2.2"
   }
 }

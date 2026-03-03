@@ -3,13 +3,13 @@
   top: 70px;
   right: 20px;
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
   z-index: 1000;
   animation: slideIn 0.3s ease-out;
 }
@@ -26,21 +26,21 @@
 }
 
 .connection-status-disconnected {
-  background-color: #fee;
-  color: #c00;
-  border: 1px solid #fcc;
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid rgba(185, 28, 28, 0.2);
 }
 
 .connection-status-reconnecting {
-  background-color: #ffc;
-  color: #860;
-  border: 1px solid #fea;
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
 .connection-status-error {
-  background-color: #fee;
-  color: #c00;
-  border: 1px solid #fcc;
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid rgba(185, 28, 28, 0.2);
 }
 
 .connection-status-icon {
@@ -51,7 +51,6 @@
   white-space: nowrap;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .connection-status {
     top: 60px;

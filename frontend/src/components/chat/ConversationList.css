@@ -23,6 +23,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
+  font-family: var(--font-display);
 }
 
 .new-chat-button {
@@ -32,34 +33,28 @@
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
   color: #ffffff;
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
-  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 6px 14px rgba(15, 118, 110, 0.3);
 }
 
 .new-chat-button:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #5b21b6 100%);
   transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 10px 18px rgba(15, 118, 110, 0.35);
 }
 
 .new-chat-button:active {
   transform: scale(0.95);
 }
 
-.new-chat-button svg {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-}
-
-/* Accessibility: Focus indicator for new chat button */
 .new-chat-button:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.3);
 }
 
 .conversation-search {
@@ -70,7 +65,7 @@
   width: 100%;
   padding: 10px 16px;
   border: 2px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 0.875rem;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -81,15 +76,14 @@
 .search-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
 }
 
-/* Accessibility: High contrast focus indicator */
 .search-input:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
 }
 
 .search-input::placeholder {
@@ -124,9 +118,7 @@
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 .conversation-list-empty p {
@@ -134,7 +126,6 @@
   font-size: 0.875rem;
 }
 
-/* Scrollbar styling */
 .conversation-list-body::-webkit-scrollbar {
   width: 6px;
 }
@@ -152,7 +143,6 @@
   background: var(--text-tertiary);
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .conversation-list-header {
     padding: 16px;

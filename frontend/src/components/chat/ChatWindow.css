@@ -16,7 +16,7 @@
 .empty-state {
   text-align: center;
   padding: 40px;
-  max-width: 400px;
+  max-width: 420px;
 }
 
 .empty-icon {
@@ -45,7 +45,7 @@
   padding: 16px 20px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .back-button {
@@ -53,7 +53,7 @@
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg-tertiary);
   color: var(--text-primary);
   font-size: 1.25rem;
@@ -92,7 +92,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
   color: white;
   font-weight: 600;
   font-size: 1.125rem;
@@ -119,7 +119,6 @@
   color: var(--text-secondary);
 }
 
-/* Mobile styles */
 @media (max-width: 768px) {
   .back-button.mobile-only {
     display: flex;

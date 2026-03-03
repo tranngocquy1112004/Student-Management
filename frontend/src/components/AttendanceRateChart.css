@@ -1,9 +1,10 @@
 .attendance-rate-chart {
   margin: 20px 0;
   padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--card-border);
 }
 
 .chart-container {
@@ -17,17 +18,18 @@
 .no-data-message {
   padding: 40px 20px;
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .error-message {
-  color: #d32f2f;
-  background-color: #ffebee;
-  border-radius: 4px;
+  color: #b91c1c;
+  background-color: #fee2e2;
+  border-radius: 8px;
+  border: 1px solid rgba(185, 28, 28, 0.2);
 }
 
 .no-data-message {
-  color: #999;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
