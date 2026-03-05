@@ -12,29 +12,37 @@ export const getSchedules = async (req, res) => {
     const cls = await Class.findById(req.params.classId);
     if (!cls || cls.isDeleted) return res.status(404).json({ success: false });
 
-    const { page, limit } = req.query;
-    const filter = { classId: req.params.classId, isDeleted: false };
-
-    const { paginate } = await import('../utils/pagination.js');
-    const result = await paginate(
-      Schedule,
-      filter,
-      {
-        page,
-        limit,
-        sort: { startDate: 1 }
-      }
-    );
-
-    // Add dayLabel to each schedule
-    if (result.data) {
+    const { page, limit, startDate, endDate } = req.query;
+    
+    // Use new service to get schedules with status
+    const schedules = await scheduleService.getSchedulesWithStatus(req.params.classId, {
+      startDate,
+      endDate
+    });
+    
+    // Apply pagination if needed
+    if (page && limit) {
+      const { paginate } = await import('../utils/pagination.js');
+      const result = await paginate(
+        Schedule,
+        { classId: req.params.classId, isDeleted: false },
+        {
+          page,
+          limit,
+          sort: { date: 1, startTime: 1 }
+        }
+      );
+      
+      // Enrich with status
       result.data = result.data.map(s => ({
         ...s.toObject(),
-        dayLabel: DAYS[s.dayOfWeek] || `Thứ ${s.dayOfWeek + 1}`
+        status: scheduleService.calculateSessionStatus(s)
       }));
+      
+      return res.json(result);
     }
-
-    res.json(result);
+    
+    res.json({ success: true, data: schedules });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -42,42 +50,41 @@ export const getSchedules = async (req, res) => {
 
 export const createSchedule = async (req, res) => {
   try {
-    const cls = await Class.findById(req.params.classId);
-    if (!cls || cls.isDeleted) return res.status(404).json({ success: false });
-    if (cls.teacherId.toString() !== req.user._id.toString() && req.user.role !== 'admin') return res.status(403).json({ success: false });
+    // Validate input
+    const validation = await scheduleService.validateScheduleInput(
+      req.params.classId,
+      req.body,
+      req.user
+    );
     
-    // Kiểm tra trùng lặp (dayOfWeek + startDate)
-    const { dayOfWeek, startDate } = req.body;
-    if (dayOfWeek !== undefined && startDate) {
-      const duplicate = await Schedule.findOne({
-        classId: req.params.classId,
-        dayOfWeek: dayOfWeek,
-        startDate: new Date(startDate),
-        isDeleted: false
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: validation.message,
+        code: validation.code
       });
-      if (duplicate) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Đã tồn tại lịch học vào ${DAYS[dayOfWeek]} ngày ${new Date(startDate).toLocaleDateString('vi-VN')}` 
-        });
-      }
     }
     
-    const schedule = await Schedule.create({ ...req.body, classId: req.params.classId });
+    // Create schedule with auto-session creation
+    const result = await scheduleService.createScheduleWithSession(
+      req.params.classId,
+      req.body,
+      req.user._id
+    );
     
-    // Get all students in the class
+    // Get class for email notification
+    const cls = await Class.findById(req.params.classId);
     const enrollments = await Enrollment.find({ classId: req.params.classId }).populate('studentId');
     const students = enrollments.map(e => e.studentId).filter(s => s && s.email);
     
-    // Gửi email bất đồng bộ (không chờ kết quả) để API trả về ngay lập tức
+    // Send email notification in background
     if (students.length > 0) {
       console.log(`📧 Đang gửi email thông báo cho ${students.length} sinh viên...`);
       
-      // Gửi email trong background, không chờ kết quả
       sendScheduleNotification({
         students,
         className: cls.name,
-        schedule: schedule.toObject()
+        schedule: result.schedule.toObject()
       }).then(emailResult => {
         if (emailResult.success) {
           console.log(`✅ Email đã gửi thành công: ${emailResult.sentCount}/${emailResult.total} sinh viên`);
@@ -87,20 +94,15 @@ export const createSchedule = async (req, res) => {
       }).catch(error => {
         console.error('❌ Lỗi khi gửi email:', error);
       });
-      
-      // Trả về ngay lập tức, không chờ email
-      res.status(201).json({ 
-        success: true, 
-        data: schedule,
-        message: `Đã tạo lịch học và đang gửi email cho ${students.length} sinh viên`
-      });
-    } else {
-      res.status(201).json({ 
-        success: true, 
-        data: schedule,
-        message: 'Đã tạo lịch học thành công'
-      });
     }
+    
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: students.length > 0 
+        ? `Đã tạo lịch học và đang gửi email cho ${students.length} sinh viên`
+        : 'Đã tạo lịch học thành công'
+    });
   } catch (error) {
     console.error('Create schedule error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -141,15 +143,18 @@ export const updateSchedule = async (req, res) => {
 
 export const deleteSchedule = async (req, res) => {
   try {
-    const schedule = await Schedule.findById(req.params.id);
-    if (!schedule || schedule.isDeleted) return res.status(404).json({ success: false });
-    const cls = await Class.findById(schedule.classId);
-    if (cls.teacherId.toString() !== req.user._id.toString() && req.user.role !== 'admin') return res.status(403).json({ success: false });
-    schedule.isDeleted = true;
-    schedule.deletedAt = new Date();
-    await schedule.save();
-    res.json({ success: true });
+    await scheduleService.deleteSchedule(req.params.id, req.user);
+    res.json({ success: true, message: 'Đã xóa lịch học thành công' });
   } catch (error) {
+    if (error.message === 'Schedule not found') {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lịch học' });
+    }
+    if (error.message === 'Permission denied') {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa lịch học này' });
+    }
+    if (error.message.includes('Cannot delete past')) {
+      return res.status(400).json({ success: false, message: error.message, code: 'CANNOT_DELETE_PAST_SCHEDULE' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };

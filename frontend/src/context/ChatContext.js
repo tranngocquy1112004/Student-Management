@@ -27,6 +27,40 @@ export const ChatProvider = ({ children }) => {
     localStorage.getItem('notification_permission') || 'default'
   );
 
+  // Normalize message structure to ensure consistent senderId format
+  const normalizeMessage = useCallback((message) => {
+    if (!message) return null;
+    
+    // Ensure senderId is always an object with _id
+    let normalizedSenderId = message.senderId;
+    
+    if (typeof message.senderId === 'string') {
+      // Convert string ID to object format
+      normalizedSenderId = {
+        _id: message.senderId,
+        name: 'Unknown',
+        avatar: null
+      };
+      console.warn('⚠️ Normalized string senderId to object:', message.senderId);
+    } else if (typeof message.senderId === 'object' && message.senderId !== null) {
+      // Ensure _id field exists
+      if (!message.senderId._id && message.senderId.id) {
+        normalizedSenderId = {
+          ...message.senderId,
+          _id: message.senderId.id
+        };
+      }
+    } else {
+      console.error('❌ Invalid senderId format:', message.senderId);
+      return null;
+    }
+    
+    return {
+      ...message,
+      senderId: normalizedSenderId
+    };
+  }, []);
+
   // Initialize socket connection when user is authenticated
   useEffect(() => {
     if (user) {
@@ -125,17 +159,30 @@ export const ChatProvider = ({ children }) => {
     socket.on('message:receive', ({ conversationId, message }) => {
       console.log('📨 Message received:', message);
       
+      // Validate message structure
+      if (!message || !message.content || !message.senderId) {
+        console.error('❌ Invalid message received:', message);
+        return;
+      }
+      
+      // Normalize message structure
+      const normalizedMessage = normalizeMessage(message);
+      if (!normalizedMessage) {
+        console.error('❌ Failed to normalize message:', message);
+        return;
+      }
+      
       // Add message to messages state
       setMessages(prev => {
         const convMessages = prev[conversationId] || [];
         
         // Check if message already exists (avoid duplicates)
-        const exists = convMessages.find(m => m._id === message._id);
+        const exists = convMessages.find(m => m._id === normalizedMessage._id);
         if (exists) return prev;
         
         return {
           ...prev,
-          [conversationId]: [...convMessages, message]
+          [conversationId]: [...convMessages, normalizedMessage]
         };
       });
       
@@ -204,15 +251,48 @@ export const ChatProvider = ({ children }) => {
     socket.on('message:sent', ({ conversationId, message }) => {
       console.log('✅ Message sent confirmation:', message);
       
+      // Validate message structure
+      if (!message || !message.content || !message.senderId) {
+        console.error('❌ Invalid message sent confirmation:', message);
+        return;
+      }
+      
+      // Normalize message structure
+      const normalizedMessage = normalizeMessage(message);
+      if (!normalizedMessage) {
+        console.error('❌ Failed to normalize message:', message);
+        return;
+      }
+      
       // Replace temp/pending message with confirmed message
       setMessages(prev => {
         const convMessages = prev[conversationId] || [];
         
+        // Find the FIRST pending message with matching content and replace it
+        let replaced = false;
+        const updatedMessages = convMessages.map(m => {
+          // Match by content and pending status - only replace the first match
+          if (!replaced && m.pending && m.content === normalizedMessage.content) {
+            replaced = true;
+            console.log('🔄 Replacing pending message:', m._id, 'with confirmed:', normalizedMessage._id);
+            return normalizedMessage;
+          }
+          return m;
+        });
+        
+        // If no pending message was replaced, add the new message
+        // This handles the case where the message was already confirmed
+        if (!replaced) {
+          const exists = updatedMessages.find(m => m._id === normalizedMessage._id);
+          if (!exists) {
+            console.log('➕ Adding confirmed message (no pending found):', normalizedMessage._id);
+            updatedMessages.push(normalizedMessage);
+          }
+        }
+        
         return {
           ...prev,
-          [conversationId]: convMessages.map(m =>
-            m.pending ? message : m
-          )
+          [conversationId]: updatedMessages
         };
       });
     });
@@ -279,7 +359,7 @@ export const ChatProvider = ({ children }) => {
         window.toast.error(message || 'Đã xảy ra lỗi kết nối');
       }
     });
-  }, [user, currentConversation]);
+  }, [user, currentConversation, normalizeMessage]);
 
   // Sync unsent messages from localStorage
   const syncUnsentMessages = useCallback(() => {

@@ -143,7 +143,7 @@ const ClassDetail = () => {
   const [myAttendance, setMyAttendance] = useState(null);
   const fetchMyAttendance = async () => {
     try {
-      const { data } = await api.get(`/attendance/my-attendance/${id}`);
+      const { data } = await api.get(`/classes/${id}/attendance/my-attendance`);
       setMyAttendance(data.data);
     } catch (err) {
       // ignore if not student or not enrolled
@@ -373,7 +373,7 @@ const ClassDetail = () => {
   };
   const handleDirectCheckIn = async () => {
     try {
-      const response = await api.post(`/classes/${id}/attendance/direct-checkin`);
+      const response = await api.post(`/classes/${id}/attendance/check-in`);
       toast.success(response.data.message || 'Điểm danh thành công');
       // Refresh attendance status
       await fetchStudentAttendanceStatus();
@@ -390,7 +390,7 @@ const ClassDetail = () => {
   const fetchStudentAttendanceStatus = async () => {
     if (user?.role !== 'student') return;
     try {
-      const { data } = await api.get(`/classes/${id}/attendance/student-status`);
+      const { data } = await api.get(`/classes/${id}/attendance/status`);
       setStudentAttendanceStatus(data);
     } catch (error) {
       console.error('Error fetching attendance status:', error);
@@ -1445,7 +1445,7 @@ const ClassDetail = () => {
                   if (!scheduleDate) return true; // Show all if no date selected
                   
                   // Compare dates (ignore time)
-                  const scheduleStartDate = new Date(s.startDate);
+                  const scheduleStartDate = new Date(s.date);
                   const filterDate = new Date(scheduleDate);
                   
                   return scheduleStartDate.toDateString() === filterDate.toDateString();
@@ -1466,20 +1466,25 @@ const ClassDetail = () => {
                   );
                 }
                 
-                return paginatedSchedules.map((s) => (
-                  <tr key={s._id}>
-                    <td>{DAYS[s.dayOfWeek]}</td>
-                    <td>{new Date(s.startDate).toLocaleDateString('vi-VN')}</td>
-                    <td>{s.startTime} - {s.endTime}</td>
-                    <td>{s.room || '-'}</td>
-                    {canEdit && (
-                      <td>
-                        <button onClick={() => { setEditing(s); setModal('editSchedule'); }}>Sửa</button>
-                        <button className="btn-danger" onClick={() => handleDeleteSchedule(s._id)}>Xóa</button>
-                      </td>
-                    )}
-                  </tr>
-                ));
+                return paginatedSchedules.map((s) => {
+                  const scheduleDate = new Date(s.date);
+                  const dayOfWeek = scheduleDate.getDay();
+                  
+                  return (
+                    <tr key={s._id}>
+                      <td>{DAYS[dayOfWeek]}</td>
+                      <td>{scheduleDate.toLocaleDateString('vi-VN')}</td>
+                      <td>{s.startTime} - {s.endTime}</td>
+                      <td>{s.room || '-'}</td>
+                      {canEdit && (
+                        <td>
+                          <button onClick={() => { setEditing(s); setModal('editSchedule'); }}>Sửa</button>
+                          <button className="btn-danger" onClick={() => handleDeleteSchedule(s._id)}>Xóa</button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                });
               })()}
             </tbody>
           </table>
@@ -1526,19 +1531,23 @@ const ClassDetail = () => {
                   {schedules
                     .slice((attendancePage - 1) * attendancePerPage, attendancePage * attendancePerPage)
                     .map((schedule) => {
-                    // Check if this specific schedule has attendance record for this student
-                    const scheduleIdStr = safeIdToString(schedule._id);
-                    const hasCheckedIn = scheduleIdStr && myAttendance?.records?.some(
-                      record => {
-                        const recordScheduleId = safeIdToString(record.scheduleId);
-                        return recordScheduleId === scheduleIdStr;
-                      }
-                    ) || false;
+                    // Find the session for this schedule
+                    const session = myAttendance?.sessions?.find(s => 
+                      safeIdToString(s.scheduleId) === safeIdToString(schedule._id)
+                    );
+                    
+                    // Check if student has checked in for this session
+                    const hasCheckedIn = session && myAttendance?.records?.some(
+                      record => safeIdToString(record.sessionId) === safeIdToString(session._id)
+                    );
+                    
+                    const scheduleDate = new Date(schedule.date);
+                    const dayOfWeek = scheduleDate.getDay();
                     
                     return (
                       <tr key={schedule._id}>
-                        <td>{DAYS[schedule.dayOfWeek]}</td>
-                        <td>{new Date(schedule.startDate).toLocaleDateString('vi-VN')}</td>
+                        <td>{DAYS[dayOfWeek]}</td>
+                        <td>{scheduleDate.toLocaleDateString('vi-VN')}</td>
                         <td>{schedule.startTime} - {schedule.endTime}</td>
                         <td>{schedule.room || '-'}</td>
                         <td>

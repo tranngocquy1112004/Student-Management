@@ -49,10 +49,18 @@ export const useChat = () => {
           return user1Id !== user2Id;
         });
         
+        // Ensure lastMessage has valid content
+        const sanitizedConversations = validConversations.map(conv => ({
+          ...conv,
+          lastMessage: conv.lastMessage && conv.lastMessage.content && conv.lastMessage.content.trim() !== ''
+            ? conv.lastMessage
+            : null
+        }));
+        
         if (page === 1) {
-          setConversations(validConversations);
+          setConversations(sanitizedConversations);
         } else {
-          setConversations(prev => [...prev, ...validConversations]);
+          setConversations(prev => [...prev, ...sanitizedConversations]);
         }
       }
     } catch (err) {
@@ -77,9 +85,6 @@ export const useChat = () => {
       
       // Find conversation in local state
       const conversation = conversations.find(c => c._id === conversationId);
-      if (conversation) {
-        setCurrentConversation(conversation);
-      }
       
       // Join conversation room via socket
       const socket = context.getSocket();
@@ -87,7 +92,7 @@ export const useChat = () => {
         socket.emit('conversation:join', { conversationId });
       }
       
-      // Load messages for this conversation
+      // Load messages for this conversation FIRST
       const response = await api.get(`/chat/conversations/${conversationId}/messages`, {
         params: { page: 1, limit: 50 }
       });
@@ -107,6 +112,11 @@ export const useChat = () => {
             hasMore: pagination.hasMore
           }
         }));
+      }
+      
+      // Set current conversation AFTER messages are loaded
+      if (conversation) {
+        setCurrentConversation(conversation);
       }
       
       // Mark conversation as read

@@ -1,135 +1,305 @@
+import mongoose from 'mongoose';
 import AttendanceSession from '../models/AttendanceSession.js';
 import AttendanceRecord from '../models/AttendanceRecord.js';
 import Enrollment from '../models/Enrollment.js';
-import Class from '../models/Class.js';
+import { calculateSessionStatus } from './scheduleService.js';
 
 /**
- * AttendanceService
- * Business logic for attendance calculations and statistics
+ * Attendance Service
+ * Handles student check-in validation and attendance record management
  */
-class AttendanceService {
-  /**
-   * Calculate attendance statistics for a class
-   * @param {ObjectId} classId
-   * @returns {Promise<{className: string, totalStudents: number, studentsAttended: number}>}
-   */
-  async calculateStatistics(classId) {
-    // Get class info
-    const classInfo = await Class.findById(classId);
-    if (!classInfo) {
-      throw new Error('Class not found');
-    }
 
-    // Get total enrolled students
-    const totalStudents = await Enrollment.countDocuments({ classId });
-
-    // Get today's sessions
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const todaySessions = await AttendanceSession.find({
-      classId,
-      date: { $gte: startOfDay, $lte: endOfDay },
-      isDeleted: false
-    });
-
-    // Get distinct students who attended today
-    let studentsAttended = 0;
-    if (todaySessions.length > 0) {
-      const sessionIds = todaySessions.map(s => s._id);
-      const attendedStudentIds = await AttendanceRecord.distinct('studentId', {
-        sessionId: { $in: sessionIds },
-        status: 'present'
-      });
-      studentsAttended = attendedStudentIds.length;
-    }
-
+/**
+ * Validate if student can check in
+ * Checks time window, enrollment, and duplicates
+ */
+export const validateCheckInEligibility = async (classId, studentId, currentTime = null) => {
+  // Find today's session for the class
+  const now = currentTime || new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  
+  const session = await AttendanceSession.findOne({
+    classId,
+    date: { $gte: todayStart, $lte: todayEnd },
+    isDeleted: false
+  });
+  
+  if (!session) {
     return {
-      className: classInfo.name,
-      totalStudents,
-      studentsAttended
+      valid: false,
+      message: 'No attendance session available today',
+      code: 'NO_SESSION_TODAY'
     };
   }
+  
+  // Check time window
+  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  
+  if (currentTimeStr < session.startTime) {
+    return {
+      valid: false,
+      message: `Session has not started yet. Class starts at ${session.startTime}`,
+      code: 'SESSION_NOT_STARTED'
+    };
+  }
+  
+  if (currentTimeStr > session.endTime) {
+    return {
+      valid: false,
+      message: `Session has ended. Class ended at ${session.endTime}`,
+      code: 'SESSION_EXPIRED'
+    };
+  }
+  
+  // Check enrollment
+  const enrollment = await Enrollment.findOne({ classId, studentId });
+  if (!enrollment) {
+    return {
+      valid: false,
+      message: 'You are not enrolled in this class',
+      code: 'NOT_ENROLLED'
+    };
+  }
+  
+  // Check for duplicate check-in
+  const existingRecord = await AttendanceRecord.findOne({
+    sessionId: session._id,
+    studentId
+  });
+  
+  if (existingRecord) {
+    return {
+      valid: false,
+      message: 'You have already checked in for this session',
+      code: 'DUPLICATE_CHECKIN'
+    };
+  }
+  
+  return {
+    valid: true,
+    session
+  };
+};
 
-  /**
-   * Calculate attendance rate for a class
-   * @param {ObjectId} classId
-   * @returns {Promise<{classId: ObjectId, className: string, rate: number, attended: number, total: number}>}
-   */
-  async calculateAttendanceRate(classId) {
-    // Get class info
-    const classInfo = await Class.findById(classId);
-    if (!classInfo) {
-      throw new Error('Class not found');
-    }
-
-    // Get total sessions
-    const totalSessions = await AttendanceSession.countDocuments({
-      classId,
-      isDeleted: false
+/**
+ * Create attendance record for student
+ * Note: Not using transactions for standalone MongoDB compatibility
+ */
+export const checkInStudent = async (sessionId, studentId) => {
+  try {
+    const record = await AttendanceRecord.create({
+      sessionId,
+      studentId,
+      status: 'present',
+      checkedAt: new Date(),
+      checkInMethod: 'manual'
     });
+    
+    return {
+      success: true,
+      data: record
+    };
+  } catch (error) {
+    throw error;
+  }
+};
 
-    // Get total enrolled students
-    const totalStudents = await Enrollment.countDocuments({ classId });
+/**
+ * Get attendance status for a student in a class
+ * Returns whether student has checked in today
+ */
+export const getStudentAttendanceStatus = async (classId, studentId, date = null) => {
+  const targetDate = date || new Date();
+  const dayStart = new Date(targetDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(targetDate);
+  dayEnd.setHours(23, 59, 59, 999);
+  
+  // Find session for the date
+  const session = await AttendanceSession.findOne({
+    classId,
+    date: { $gte: dayStart, $lte: dayEnd },
+    isDeleted: false
+  }).populate('scheduleId');
+  
+  if (!session) {
+    return {
+      hasSession: false,
+      hasCheckedIn: false,
+      sessionStatus: null,
+      session: null
+    };
+  }
+  
+  // Check if student has checked in
+  const record = await AttendanceRecord.findOne({
+    sessionId: session._id,
+    studentId
+  });
+  
+  // Calculate session status
+  const scheduleData = session.scheduleId || {
+    date: session.date,
+    startTime: session.startTime,
+    endTime: session.endTime
+  };
+  
+  const status = calculateSessionStatus(scheduleData);
+  
+  return {
+    hasSession: true,
+    hasCheckedIn: !!record,
+    sessionStatus: status,
+    session: {
+      _id: session._id,
+      date: session.date,
+      startTime: session.startTime,
+      endTime: session.endTime
+    },
+    checkInTime: record ? record.checkedAt : null
+  };
+};
 
-    // Handle edge cases
-    if (totalSessions === 0 || totalStudents === 0) {
-      return {
-        classId,
-        className: classInfo.name,
-        rate: 0,
-        attended: 0,
-        total: totalSessions * totalStudents
-      };
-    }
-
-    // Get all sessions for this class
+/**
+ * Generate attendance report
+ * Supports filtering by class, student, or date range
+ */
+export const getAttendanceReport = async (filters = {}) => {
+  const query = {};
+  
+  // Build query based on filters
+  if (filters.classId) {
     const sessions = await AttendanceSession.find({
-      classId,
+      classId: filters.classId,
       isDeleted: false
-    });
-    const sessionIds = sessions.map(s => s._id);
-
-    // Count attendance records with status 'present'
-    const attendedCount = await AttendanceRecord.countDocuments({
-      sessionId: { $in: sessionIds },
-      status: 'present'
-    });
-
-    // Calculate rate: (attended / (sessions × students)) × 100
-    const totalPossible = totalSessions * totalStudents;
-    const rate = (attendedCount / totalPossible) * 100;
-
-    return {
-      classId,
-      className: classInfo.name,
-      rate: Math.round(rate * 100) / 100, // Round to 2 decimal places
-      attended: attendedCount,
-      total: totalPossible
-    };
+    }).select('_id');
+    query.sessionId = { $in: sessions.map(s => s._id) };
   }
-
-  /**
-   * Get attendance rate for all classes of a teacher
-   * @param {ObjectId} teacherId
-   * @returns {Promise<Array>}
-   */
-  async getTeacherClassesAttendanceRate(teacherId) {
-    // Get all classes for this teacher
-    const classes = await Class.find({
-      teacherId,
-      isDeleted: false
-    });
-
-    // Calculate rate for each class
-    const rates = await Promise.all(
-      classes.map(cls => this.calculateAttendanceRate(cls._id))
-    );
-
-    return rates;
+  
+  if (filters.studentId) {
+    query.studentId = filters.studentId;
   }
-}
+  
+  if (filters.startDate || filters.endDate) {
+    // Need to join with sessions to filter by date
+    const sessionQuery = { isDeleted: false };
+    if (filters.startDate) {
+      sessionQuery.date = { $gte: new Date(filters.startDate) };
+    }
+    if (filters.endDate) {
+      sessionQuery.date = sessionQuery.date || {};
+      sessionQuery.date.$lte = new Date(filters.endDate);
+    }
+    
+    const sessions = await AttendanceSession.find(sessionQuery).select('_id');
+    query.sessionId = { $in: sessions.map(s => s._id) };
+  }
+  
+  // Fetch records with populated data
+  const records = await AttendanceRecord.find(query)
+    .populate('studentId', 'name email studentCode')
+    .populate({
+      path: 'sessionId',
+      select: 'date startTime endTime classId'
+    })
+    .sort({ 'sessionId.date': -1, checkedAt: -1 })
+    .lean();
+  
+  return records;
+};
 
-export default new AttendanceService();
+/**
+ * Calculate attendance statistics for a class
+ * Returns total sessions, total check-ins, and attendance rate
+ */
+export const calculateStatistics = async (classId) => {
+  // Get all sessions for the class
+  const sessions = await AttendanceSession.find({
+    classId,
+    isDeleted: false
+  });
+  
+  const sessionIds = sessions.map(s => s._id);
+  
+  // Get all attendance records
+  const records = await AttendanceRecord.find({
+    sessionId: { $in: sessionIds }
+  });
+  
+  // Get total enrolled students
+  const enrollments = await Enrollment.find({ classId });
+  const totalStudents = enrollments.length;
+  
+  // Calculate statistics
+  const totalSessions = sessions.length;
+  const totalCheckIns = records.filter(r => r.status === 'present').length;
+  const expectedCheckIns = totalSessions * totalStudents;
+  const attendanceRate = expectedCheckIns > 0 ? (totalCheckIns / expectedCheckIns) * 100 : 0;
+  
+  return {
+    totalSessions,
+    totalCheckIns,
+    totalStudents,
+    expectedCheckIns,
+    attendanceRate: Math.round(attendanceRate * 100) / 100
+  };
+};
+
+/**
+ * Calculate attendance rate for a class
+ * Returns percentage of students who attended vs expected
+ */
+export const calculateAttendanceRate = async (classId) => {
+  const stats = await calculateStatistics(classId);
+  return {
+    classId,
+    attendanceRate: stats.attendanceRate,
+    totalSessions: stats.totalSessions,
+    totalCheckIns: stats.totalCheckIns
+  };
+};
+
+/**
+ * Get attendance rates for all classes taught by a teacher
+ * Returns array of class attendance statistics
+ */
+export const getTeacherClassesAttendanceRate = async (teacherId) => {
+  const Class = (await import('../models/Class.js')).default;
+  
+  // Find all classes taught by this teacher
+  const classes = await Class.find({
+    teacherId,
+    isDeleted: false
+  }).select('_id name code');
+  
+  // Calculate attendance rate for each class
+  const rates = await Promise.all(
+    classes.map(async (cls) => {
+      const stats = await calculateStatistics(cls._id);
+      return {
+        classId: cls._id,
+        className: cls.name,
+        classCode: cls.code,
+        attendanceRate: stats.attendanceRate,
+        totalSessions: stats.totalSessions,
+        totalCheckIns: stats.totalCheckIns,
+        totalStudents: stats.totalStudents
+      };
+    })
+  );
+  
+  return rates;
+};
+
+export default {
+  validateCheckInEligibility,
+  checkInStudent,
+  getStudentAttendanceStatus,
+  getAttendanceReport,
+  calculateStatistics,
+  calculateAttendanceRate,
+  getTeacherClassesAttendanceRate
+};

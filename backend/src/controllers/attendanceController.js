@@ -342,121 +342,47 @@ export const getTeacherAttendanceRates = async (req, res) => {
 
 export const directCheckIn = async (req, res) => {
   try {
-    const { classId } = req.params;
+    const classId = req.params.classId;
+    const studentId = req.user._id;
     
-    // Validate student is enrolled
-    const enrollment = await Enrollment.findOne({ classId, studentId: req.user._id });
-    if (!enrollment) {
-      return res.status(403).json({ success: false, message: 'Bạn không được ghi danh vào lớp học này' });
-    }
+    // Validate check-in eligibility using new service
+    const validation = await attendanceService.validateCheckInEligibility(classId, studentId);
     
-    // Validate schedule and time window
-    const validation = await scheduleValidator.validateScheduleAndTime(classId);
     if (!validation.valid) {
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         message: validation.message,
         code: validation.code
       });
     }
     
-    // Find or create today's attendance session
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Create check-in record
+    const result = await attendanceService.checkInStudent(validation.session._id, studentId);
     
-    let session = await AttendanceSession.findOne({
-      classId,
-      date: { $gte: today, $lt: tomorrow },
-      isDeleted: false
-    });
-    
-    if (!session) {
-      // Auto-create session for today
-      session = await AttendanceSession.create({
-        classId,
-        date: new Date(),
-        shift: validation.schedule.shift || `${validation.schedule.startTime} - ${validation.schedule.endTime}`
-      });
-    }
-    
-    // Check if already checked in
-    const existingRecord = await AttendanceRecord.findOne({
-      sessionId: session._id,
-      studentId: req.user._id
-    });
-    
-    if (existingRecord) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Bạn đã điểm danh cho buổi học này rồi' 
-      });
-    }
-    
-    // Create attendance record
-    const record = await AttendanceRecord.create({
-      sessionId: session._id,
-      studentId: req.user._id,
-      status: 'present',
-      checkInMethod: 'manual',
-      checkedAt: new Date()
-    });
-    
-    res.json({ 
-      success: true, 
-      data: record,
-      message: 'Điểm danh thành công'
+    res.json({
+      success: true,
+      message: 'Điểm danh thành công',
+      data: result.data
     });
   } catch (error) {
+    console.error('Direct check-in error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const getStudentAttendanceStatus = async (req, res) => {
   try {
-    const { classId } = req.params;
+    const classId = req.params.classId;
+    const studentId = req.user._id;
     
-    // Validate student is enrolled
-    const enrollment = await Enrollment.findOne({ classId, studentId: req.user._id });
-    if (!enrollment) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
+    const status = await attendanceService.getStudentAttendanceStatus(classId, studentId);
     
-    // Get today's date range
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    // Find today's session
-    const session = await AttendanceSession.findOne({
-      classId,
-      date: { $gte: today, $lt: tomorrow },
-      isDeleted: false
-    });
-    
-    if (!session) {
-      return res.json({ 
-        success: true, 
-        hasCheckedIn: false,
-        sessionExists: false
-      });
-    }
-    
-    // Check if student has attendance record for today
-    const record = await AttendanceRecord.findOne({
-      sessionId: session._id,
-      studentId: req.user._id
-    });
-    
-    res.json({ 
-      success: true, 
-      hasCheckedIn: !!record,
-      sessionExists: true,
-      record: record || null
+    res.json({
+      success: true,
+      data: status
     });
   } catch (error) {
+    console.error('Get attendance status error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

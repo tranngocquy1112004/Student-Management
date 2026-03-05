@@ -89,9 +89,53 @@ export const useMessages = (conversationId) => {
 
   // Check if message is from current user
   const isOwnMessage = useCallback((message) => {
-    if (!user || !message) return false;
-    const senderId = message.senderId._id || message.senderId;
-    return senderId === user._id;
+    if (!user || !message) {
+      console.warn('⚠️ isOwnMessage: Missing user or message', { hasUser: !!user, hasMessage: !!message });
+      return false;
+    }
+    
+    // If message is pending, it's always from current user
+    if (message.pending === true) {
+      return true;
+    }
+    
+    // Extract sender ID - handle both object and string formats
+    let senderId;
+    if (typeof message.senderId === 'object' && message.senderId !== null) {
+      senderId = message.senderId._id || message.senderId.id;
+    } else if (typeof message.senderId === 'string') {
+      senderId = message.senderId;
+    } else {
+      console.error('❌ Invalid senderId format:', message.senderId);
+      return false;
+    }
+    
+    // Extract user ID
+    const userId = user._id || user.id;
+    
+    if (!senderId || !userId) {
+      console.error('❌ Missing senderId or userId:', { senderId, userId });
+      return false;
+    }
+    
+    // Ensure both IDs are strings and trim whitespace
+    const senderIdStr = String(senderId).trim();
+    const userIdStr = String(userId).trim();
+    
+    const isOwn = senderIdStr === userIdStr;
+    
+    // Debug log for troubleshooting
+    console.log('🔍 isOwnMessage check:', {
+      messageId: message._id,
+      senderId: senderIdStr,
+      userId: userIdStr,
+      isOwn,
+      isPending: message.pending,
+      senderIdType: typeof message.senderId,
+      senderIdValue: message.senderId
+    });
+    
+    return isOwn;
   }, [user]);
 
   // Check if should show sender info (for consecutive messages from same sender)

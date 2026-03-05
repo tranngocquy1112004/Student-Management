@@ -1,273 +1,395 @@
-/**
- * ScheduleService
- * Business logic for schedule generation and management
- */
 import mongoose from 'mongoose';
-import Class from '../models/Class.js';
 import Schedule from '../models/Schedule.js';
-class ScheduleService {
-  /**
-   * Calculate remaining lessons for a class
-   * @param {string} classId - The class ID
-   * @returns {Promise<number>} Number of remaining lessons
-   */
-  async calculateRemainingLessons(classId) {
-    const classData = await Class.findById(classId);
-    
-    if (!classData) {
-      throw new Error('Class not found');
-    }
-    
-    if (!classData.totalLessons) {
-      throw new Error('Total lessons not configured for this class');
-    }
-    
-    const remainingLessons = classData.totalLessons - classData.scheduledLessons;
-    return remainingLessons;
-  }
+import AttendanceSession from '../models/AttendanceSession.js';
+import Class from '../models/Class.js';
 
-  /**
-   * Generate schedules based on input parameters
-   * @param {Date} startDate - The starting date for schedule generation
-   * @param {string} dayGroup - Day group pattern ('2-4-6' or '3-5-7')
-   * @param {string} session - Session type ('morning' or 'afternoon')
-   * @param {string} room - Room name/identifier
-   * @param {number} remainingLessons - Number of lessons to generate
-   * @returns {Array<Object>} Array of schedule objects
-   */
-  generateSchedules(startDate, dayGroup, session, room, remainingLessons) {
-    const schedules = [];
+/**
+ * Schedule Service
+ * Handles schedule creation, validation, and session management
+ */
+
+/**
+ * Create schedule with automatic session creation
+ * Note: Not using transactions for standalone MongoDB compatibility
+ */
+export const createScheduleWithSession = async (classId, scheduleData, userId) => {
+  try {
+    // Create schedule
+    const schedule = await Schedule.create({
+      classId,
+      date: scheduleData.date,
+      startTime: scheduleData.startTime,
+      endTime: scheduleData.endTime,
+      room: scheduleData.room || ''
+    });
     
-    // Map day groups to day of week numbers
-    // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
-    // Thứ 2 = Monday = 1, Thứ 3 = Tuesday = 2, Thứ 4 = Wednesday = 3, etc.
-    const dayOfWeekMap = {
-      '2-4-6': [1, 3, 5],  // Thứ 2 (Monday), Thứ 4 (Wednesday), Thứ 6 (Friday)
-      '3-5-7': [2, 4, 6]   // Thứ 3 (Tuesday), Thứ 5 (Thursday), Thứ 7 (Saturday)
+    // Auto-create attendance session
+    const attendanceSession = await AttendanceSession.create({
+      classId: schedule.classId,
+      scheduleId: schedule._id,
+      date: schedule.date,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime
+    });
+    
+    return {
+      schedule: schedule,
+      session: attendanceSession
     };
-    
-    // Map sessions to time ranges
-    const sessionTimes = {
-      'morning': { startTime: '07:30', endTime: '11:30' },
-      'afternoon': { startTime: '13:30', endTime: '17:30' }
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Validate schedule input
+ * Returns validation result with error details
+ */
+export const validateScheduleInput = async (classId, scheduleData, user) => {
+  // Check date format
+  const date = new Date(scheduleData.date);
+  if (isNaN(date.getTime())) {
+    return {
+      valid: false,
+      message: 'Invalid date format',
+      code: 'INVALID_DATE_FORMAT'
     };
+  }
+  
+  // Check date is not in past
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const scheduleDate = new Date(date);
+  scheduleDate.setHours(0, 0, 0, 0);
+  
+  if (scheduleDate < today) {
+    return {
+      valid: false,
+      message: 'Schedule date cannot be in the past',
+      code: 'PAST_DATE_ERROR'
+    };
+  }
+  
+  // Check time format and range
+  const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!timeRegex.test(scheduleData.startTime) || !timeRegex.test(scheduleData.endTime)) {
+    return {
+      valid: false,
+      message: 'Invalid time format. Use HH:MM',
+      code: 'INVALID_TIME_FORMAT'
+    };
+  }
+  
+  if (scheduleData.endTime <= scheduleData.startTime) {
+    return {
+      valid: false,
+      message: 'End time must be after start time',
+      code: 'INVALID_TIME_RANGE'
+    };
+  }
+  
+  // Check class exists
+  const classExists = await Class.findById(classId);
+  if (!classExists || classExists.isDeleted) {
+    return {
+      valid: false,
+      message: 'Class not found',
+      code: 'CLASS_NOT_FOUND'
+    };
+  }
+  
+  // Check teacher permission
+  if (user.role !== 'admin' && classExists.teacherId.toString() !== user._id.toString()) {
+    return {
+      valid: false,
+      message: 'You do not have permission to create schedules for this class',
+      code: 'PERMISSION_DENIED'
+    };
+  }
+  
+  return { valid: true };
+};
+
+/**
+ * Calculate session status based on current time
+ * Returns: "upcoming", "active", or "expired"
+ */
+export const calculateSessionStatus = (schedule, currentTime = null) => {
+  const now = currentTime || new Date();
+  const scheduleDate = new Date(schedule.date);
+  
+  // Set times to compare
+  const todayDate = new Date(now);
+  todayDate.setHours(0, 0, 0, 0);
+  
+  const scheduleDateOnly = new Date(scheduleDate);
+  scheduleDateOnly.setHours(0, 0, 0, 0);
+  
+  // If schedule date is in the future
+  if (scheduleDateOnly > todayDate) {
+    return 'upcoming';
+  }
+  
+  // If schedule date is in the past
+  if (scheduleDateOnly < todayDate) {
+    return 'expired';
+  }
+  
+  // Schedule is today - check time window
+  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  
+  if (currentTimeStr < schedule.startTime) {
+    return 'upcoming';
+  }
+  
+  if (currentTimeStr > schedule.endTime) {
+    return 'expired';
+  }
+  
+  return 'active';
+};
+
+/**
+ * Get schedules with enriched status information
+ */
+export const getSchedulesWithStatus = async (classId, filters = {}) => {
+  const query = { classId, isDeleted: false };
+  
+  // Apply date range filters if provided
+  if (filters.startDate || filters.endDate) {
+    query.date = {};
+    if (filters.startDate) {
+      query.date.$gte = new Date(filters.startDate);
+    }
+    if (filters.endDate) {
+      query.date.$lte = new Date(filters.endDate);
+    }
+  }
+  
+  // Fetch schedules ordered by date and time
+  const schedules = await Schedule.find(query)
+    .sort({ date: 1, startTime: 1 })
+    .lean();
+  
+  // Enrich with status
+  const enrichedSchedules = schedules.map(schedule => ({
+    ...schedule,
+    status: calculateSessionStatus(schedule)
+  }));
+  
+  return enrichedSchedules;
+};
+
+/**
+ * Delete schedule and associated session
+ * Only allows deletion of future schedules
+ * Note: Not using transactions for standalone MongoDB compatibility
+ */
+export const deleteSchedule = async (scheduleId, user) => {
+  try {
+    const schedule = await Schedule.findById(scheduleId);
     
-    const targetDays = dayOfWeekMap[dayGroup];
-    const times = sessionTimes[session];
-    let currentDate = new Date(startDate);
-    let count = 0;
-    
-    // Iterate through dates until we have generated all required lessons
-    while (count < remainingLessons) {
-      const dayOfWeek = currentDate.getDay();
-      
-      // Check if current day matches the target day group
-      if (targetDays.includes(dayOfWeek)) {
-        schedules.push({
-          dayOfWeek: dayOfWeek,
-          startTime: times.startTime,
-          endTime: times.endTime,
-          room: room,
-          startDate: new Date(currentDate),
-          endDate: new Date(currentDate),
-          isExam: count === remainingLessons - 1  // Last lesson is exam
-        });
-        count++;
-      }
-      
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
+    if (!schedule || schedule.isDeleted) {
+      throw new Error('Schedule not found');
     }
     
-    return schedules;
+    // Check permission
+    const classData = await Class.findById(schedule.classId);
+    if (user.role !== 'admin' && classData.teacherId.toString() !== user._id.toString()) {
+      throw new Error('Permission denied');
+    }
+    
+    // Check schedule is in future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const scheduleDate = new Date(schedule.date);
+    scheduleDate.setHours(0, 0, 0, 0);
+    
+    if (scheduleDate <= today) {
+      throw new Error('Cannot delete past or today\'s schedule');
+    }
+    
+    // Soft delete schedule
+    schedule.isDeleted = true;
+    schedule.deletedAt = new Date();
+    await schedule.save();
+    
+    // Soft delete associated session
+    await AttendanceSession.updateOne(
+      { scheduleId: schedule._id },
+      { isDeleted: true, deletedAt: new Date() }
+    );
+    
+    return { success: true };
+  } catch (error) {
+    throw error;
   }
+};
 
-  /**
-   * Validate bulk schedules before insertion
-   * @param {string} classId - The class ID
-   * @param {Array<Object>} schedules - Array of schedule objects to validate
-   * @returns {Promise<Object>} Validation result { isValid: boolean, error: string }
-   */
-  async validateBulkSchedules(classId, schedules) {
-    try {
-      // Validate schedules is an array
-      if (!Array.isArray(schedules)) {
-        return {
-          isValid: false,
-          error: 'Schedules must be an array'
-        };
-      }
+/**
+ * Calculate remaining lessons for a class
+ * Returns total lessons minus already scheduled lessons
+ */
+export const calculateRemainingLessons = async (classId) => {
+  const classData = await Class.findById(classId);
+  
+  if (!classData || classData.isDeleted) {
+    throw new Error('Class not found');
+  }
+  
+  const totalLessons = classData.totalLessons || 0;
+  const scheduledLessons = classData.scheduledLessons || 0;
+  const remainingLessons = totalLessons - scheduledLessons;
+  
+  return {
+    classId,
+    totalLessons,
+    scheduledLessons,
+    remainingLessons
+  };
+};
 
-      // Validate schedules array is not empty
-      if (schedules.length === 0) {
-        return {
-          isValid: false,
-          error: 'Schedules array cannot be empty'
-        };
-      }
-
-      // Get class data to check remaining lessons
-      const classData = await Class.findById(classId);
-
-      if (!classData) {
-        return {
-          isValid: false,
-          error: 'Không tìm thấy lớp học'
-        };
-      }
-
-      // Check if totalLessons is configured
-      if (!classData.totalLessons) {
-        return {
-          isValid: false,
-          error: 'Lớp học chưa được cấu hình số tiết học'
-        };
-      }
-
-      // Calculate remaining lessons
-      const remainingLessons = classData.totalLessons - classData.scheduledLessons;
-
-      // Validate schedules count does not exceed remaining lessons (Req 5.3)
-      if (schedules.length > remainingLessons) {
-        return {
-          isValid: false,
-          error: `Số lịch học (${schedules.length}) vượt quá số tiết còn lại (${remainingLessons})`
-        };
-      }
-
-      // Validate each schedule object
-      for (let i = 0; i < schedules.length; i++) {
-        const schedule = schedules[i];
-
-        // Validate required fields (Req 5.2)
-        if (!schedule.dayOfWeek && schedule.dayOfWeek !== 0) {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Thiếu thông tin ngày trong tuần`
-          };
-        }
-
-        if (!schedule.startTime) {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Thiếu thông tin giờ bắt đầu`
-          };
-        }
-
-        if (!schedule.endTime) {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Thiếu thông tin giờ kết thúc`
-          };
-        }
-
-        if (!schedule.startDate) {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Thiếu thông tin ngày bắt đầu`
-          };
-        }
-
-        if (!schedule.endDate) {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Thiếu thông tin ngày kết thúc`
-          };
-        }
-
-        // Validate start date is not in the past (Req 5.1)
-        const scheduleDate = new Date(schedule.startDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
-
-        if (scheduleDate < today) {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Ngày bắt đầu không được ở quá khứ`
-          };
-        }
-
-        // Validate room name if provided (Req 5.5)
-        if (schedule.room) {
-          // Room name should contain only alphanumeric characters, spaces, and common punctuation
-          const validRoomPattern = /^[a-zA-Z0-9\s\-_.]+$/;
-          if (!validRoomPattern.test(schedule.room)) {
-            return {
-              isValid: false,
-              error: `Lịch học thứ ${i + 1}: Tên phòng học chỉ được chứa chữ cái, số, khoảng trắng và các ký tự - _ .`
-            };
-          }
-        }
-
-        // Validate dayOfWeek is in valid range (0-6)
-        if (schedule.dayOfWeek < 0 || schedule.dayOfWeek > 6) {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Ngày trong tuần không hợp lệ (phải từ 0-6)`
-          };
-        }
-
-        // Validate isExam field if present
-        if (schedule.isExam !== undefined && typeof schedule.isExam !== 'boolean') {
-          return {
-            isValid: false,
-            error: `Lịch học thứ ${i + 1}: Trường isExam phải là boolean`
-          };
-        }
-      }
-
-      // All validations passed
-      return {
-        isValid: true,
-        error: null
-      };
-
-    } catch (error) {
+/**
+ * Validate bulk schedules before creation
+ * Checks count and data structure
+ */
+export const validateBulkSchedules = async (classId, schedules) => {
+  // Check if schedules is an array
+  if (!Array.isArray(schedules) || schedules.length === 0) {
+    return {
+      isValid: false,
+      error: 'Schedules must be a non-empty array'
+    };
+  }
+  
+  // Get remaining lessons
+  const remaining = await calculateRemainingLessons(classId);
+  
+  // Check if schedules count exceeds remaining lessons
+  if (schedules.length > remaining.remainingLessons) {
+    return {
+      isValid: false,
+      error: `Cannot create ${schedules.length} schedules. Only ${remaining.remainingLessons} lessons remaining.`
+    };
+  }
+  
+  // Validate each schedule data structure
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  for (let i = 0; i < schedules.length; i++) {
+    const schedule = schedules[i];
+    
+    // Check required fields
+    if (!schedule.date || !schedule.startTime || !schedule.endTime) {
       return {
         isValid: false,
-        error: `Lỗi xác thực: ${error.message}`
+        error: `Schedule at index ${i} is missing required fields (date, startTime, endTime)`
       };
     }
-  }
-
-  /**
-   * Bulk insert schedules with transaction
-   * Atomically inserts all schedules and updates class.scheduledLessons
-   * @param {string} classId - The class ID
-   * @param {Array<Object>} schedules - Array of schedule objects to insert
-   * @returns {Promise<Object>} Result object with created schedules and updated class
-   */
-  async bulkInsertWithTransaction(classId, schedules) {
-    try {
-      // Add classId to all schedule objects
-      const schedulesWithClassId = schedules.map(schedule => ({
-        ...schedule,
-        classId: classId
-      }));
-      
-      // Insert all schedules using insertMany
-      const createdSchedules = await Schedule.insertMany(schedulesWithClassId);
-      
-      // Update class.scheduledLessons using $inc operator
-      const updatedClass = await Class.findByIdAndUpdate(
-        classId,
-        { $inc: { scheduledLessons: schedules.length } },
-        { new: true }
-      );
-      
+    
+    // Validate date format
+    const date = new Date(schedule.date);
+    if (isNaN(date.getTime())) {
       return {
-        success: true,
-        createdSchedules,
-        updatedClass
+        isValid: false,
+        error: `Schedule at index ${i} has invalid date format`
       };
-      
-    } catch (error) {
-      // If insertion fails, try to clean up any created schedules
-      // This is a best-effort cleanup since we don't have transactions
-      console.error('Error in bulkInsertWithTransaction:', error);
-      throw error;
+    }
+    
+    // Check date is not in past
+    const scheduleDate = new Date(date);
+    scheduleDate.setHours(0, 0, 0, 0);
+    
+    if (scheduleDate < today) {
+      return {
+        isValid: false,
+        error: `Schedule at index ${i} has a date in the past`
+      };
+    }
+    
+    // Validate time format
+    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(schedule.startTime) || !timeRegex.test(schedule.endTime)) {
+      return {
+        isValid: false,
+        error: `Schedule at index ${i} has invalid time format. Use HH:MM`
+      };
+    }
+    
+    // Check time range
+    if (schedule.endTime <= schedule.startTime) {
+      return {
+        isValid: false,
+        error: `Schedule at index ${i} has end time before or equal to start time`
+      };
     }
   }
-}
+  
+  return { isValid: true };
+};
 
-export default new ScheduleService();
+/**
+ * Bulk insert schedules without transaction (for standalone MongoDB)
+ * Creates schedules and sessions, updates class count
+ */
+export const bulkInsertWithTransaction = async (classId, schedules) => {
+  try {
+    const createdSchedules = [];
+    const createdSessions = [];
+    
+    // Create each schedule and its session
+    for (const scheduleData of schedules) {
+      // Create schedule
+      const schedule = await Schedule.create({
+        classId,
+        date: scheduleData.date,
+        startTime: scheduleData.startTime,
+        endTime: scheduleData.endTime,
+        room: scheduleData.room || ''
+      });
+      
+      createdSchedules.push(schedule);
+      
+      // Auto-create attendance session
+      const attendanceSession = await AttendanceSession.create({
+        classId: schedule.classId,
+        scheduleId: schedule._id,
+        date: schedule.date,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime
+      });
+      
+      createdSessions.push(attendanceSession);
+    }
+    
+    // Update class scheduledLessons count
+    const updatedClass = await Class.findByIdAndUpdate(
+      classId,
+      { $inc: { scheduledLessons: schedules.length } },
+      { new: true }
+    );
+    
+    return {
+      createdSchedules,
+      createdSessions,
+      updatedClass,
+      count: schedules.length
+    };
+  } catch (error) {
+    // If error occurs, try to clean up created schedules
+    // Note: This is not atomic like transactions, but works for standalone MongoDB
+    throw error;
+  }
+};
+
+export default {
+  createScheduleWithSession,
+  validateScheduleInput,
+  calculateSessionStatus,
+  getSchedulesWithStatus,
+  deleteSchedule,
+  calculateRemainingLessons,
+  validateBulkSchedules,
+  bulkInsertWithTransaction
+};

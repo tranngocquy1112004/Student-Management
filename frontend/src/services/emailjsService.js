@@ -11,15 +11,17 @@ emailjs.init(EMAILJS_PUBLIC_KEY);
 export const sendScheduleEmail = async (students, className, schedule) => {
   try {
     const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-    const dayLabel = days[schedule.dayOfWeek] || `Thứ ${schedule.dayOfWeek + 1}`;
+    const scheduleDate = new Date(schedule.date);
+    const dayOfWeek = scheduleDate.getDay();
+    const dayLabel = days[dayOfWeek] || `Thứ ${dayOfWeek + 1}`;
     
     const templateParams = {
       class_name: className,
       day_of_week: dayLabel,
+      schedule_date: scheduleDate.toLocaleDateString('vi-VN'),
       start_time: schedule.startTime,
       end_time: schedule.endTime,
       room: schedule.room,
-      shift: schedule.shift || 'Chưa xác định',
       to_emails: students.map(s => s.email).join(','),
       student_names: students.map(s => s.name).join(', '),
     };

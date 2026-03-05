@@ -139,15 +139,12 @@ const ScheduleGeneratorModal = ({ isOpen, onClose, classData, onSchedulesCreated
     setError(null);
 
     try {
-      // Prepare schedules data for API
+      // Prepare schedules data for API (new date-based format)
       const schedulesData = previewSchedules.map(schedule => ({
-        dayOfWeek: schedule.dayOfWeek,
+        date: schedule.startDate.toISOString().split('T')[0], // Use YYYY-MM-DD format
         startTime: schedule.startTime,
         endTime: schedule.endTime,
-        room: schedule.room,
-        startDate: schedule.startDate.toISOString(),
-        endDate: schedule.endDate.toISOString(),
-        isExam: schedule.isExam
+        room: schedule.room
       }));
 
       // Call API to bulk create schedules

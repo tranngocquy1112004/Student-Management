@@ -16,8 +16,9 @@ router.get('/attendance/teacher-rates', attendanceController.getTeacherAttendanc
 router.get('/attendance/teacher-rates/:teacherId', attendanceController.getTeacherAttendanceRates);
 
 // Direct check-in (no QR code required)
-router.post('/classes/:classId/attendance/direct-checkin', checkExpelledStatus, checkStudentNotOnLeave, attendanceController.directCheckIn);
-router.get('/classes/:classId/attendance/student-status', checkExpelledStatus, attendanceController.getStudentAttendanceStatus);
+router.post('/classes/:classId/attendance/check-in', checkExpelledStatus, checkStudentNotOnLeave, attendanceController.directCheckIn);
+router.get('/classes/:classId/attendance/status', checkExpelledStatus, attendanceController.getStudentAttendanceStatus);
+router.get('/classes/:classId/attendance/my-attendance', checkExpelledStatus, attendanceController.getMyAttendance);
 
 // Existing routes
 router.post('/classes/:classId/attendance/sessions', attendanceController.createSession);
@@ -29,6 +30,5 @@ router.post('/attendance/sessions/:sessionId/generate-code', attendanceControlle
 router.get('/attendance/sessions/:sessionId/records', attendanceController.getSessionRecords);
 router.post('/attendance/check-in', checkExpelledStatus, checkStudentNotOnLeave, attendanceController.checkIn);
 router.get('/classes/:classId/attendance/report', attendanceController.getReport);
-router.get('/attendance/my-attendance/:classId', checkExpelledStatus, attendanceController.getMyAttendance);
 
 export default router;

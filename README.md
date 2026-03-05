@@ -9,6 +9,21 @@
 - [Cài đặt](#cài-đặt)
 - [Tài khoản mặc định](#tài-khoản-mặc-định)
 - [Nghiệp vụ hệ thống](#nghiệp-vụ-hệ-thống)
+  - [Quản lý Người dùng](#quản-lý-người-dùng)
+  - [Quản lý Khoa](#quản-lý-khoa)
+  - [Quản lý Môn học](#quản-lý-môn-học)
+  - [Quản lý Lớp học](#quản-lý-lớp-học)
+  - [Quản lý Điểm danh](#quản-lý-điểm-danh)
+  - [Quản lý Bài tập](#quản-lý-bài-tập)
+  - [Quản lý Nộp bài](#quản-lý-nộp-bài)
+  - [Quản lý Bảng điểm](#quản-lý-bảng-điểm)
+  - [Quản lý Thông báo](#quản-lý-thông-báo)
+  - [Quản lý Vi phạm](#quản-lý-vi-phạm)
+  - [Quản lý Kỷ luật](#quản-lý-kỷ-luật)
+  - [Hệ thống Chat](#hệ-thống-chat)
+- [Cơ sở dữ liệu](#cơ-sở-dữ-liệu)
+  - [Thực thể (Entities)](#thực-thể-entities)
+  - [Quan hệ thực thể](#quan-hệ-thực-thể)
 - [API Endpoints](#api-endpoints)
 - [Tính năng](#tính-năng)
 
@@ -120,141 +135,352 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 
 ## Nghiệp vụ hệ thống
 
-### 1. Quản lý Xác thực & Tài khoản (Authentication & User Management)
+### 1. Quản lý Người dùng (User Management)
 
-#### Đăng nhập & Bảo mật
-- Đăng nhập bằng email và mật khẩu
-- JWT token với access token (15 phút) và refresh token (7 ngày)
-- Tự động refresh token khi access token hết hạn
-- Logout xóa refresh token khỏi database
+#### Thực thể: User
+- **Mô tả**: Thông tin người dùng trong hệ thống
+- **Thuộc tính**:
+  - `name`: Họ và tên (bắt buộc)
+  - `email`: Email đăng nhập (bắt buộc, duy nhất)
+  - `password`: Mật khẩu đã hash (bắt buộc)
+  - `role`: Vai trò (admin/teacher/student, bắt buộc)
+  - `avatar`: Link ảnh đại diện
+  - `phone`: Số điện thoại
+  - `studentCode`: Mã sinh viên (cho role student)
+  - `teacherCode`: Mã giảng viên (cho role teacher)
+  - `isLocked`: Trạng thái khóa tài khoản
+  - `status`: Trạng thái (active/on_leave/dismissed/suspended)
+  - `isDeleted`: Đã xóa (soft delete)
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Quên mật khẩu
-1. Người dùng nhập email
-2. Hệ thống gửi mã OTP (6 số) qua email
-3. OTP có hiệu lực 10 phút
-4. Xác thực OTP và đặt lại mật khẩu mới
+#### Thực thể: Student
+- **Mô tả**: Thông tin chi tiết sinh viên
+- **Thuộc tính**:
+  - `userId`: ID User tham chiếu (bắt buộc, duy nhất)
+  - `studentCode`: Mã sinh viên (bắt buộc, duy nhất)
+  - `classId`: ID lớp học hiện tại
+  - `dateOfBirth`: Ngày sinh
+  - `address`: Địa chỉ
+  - `phone`: Số điện thoại
+  - `gpa`: Điểm trung bình tích lũy
+  - `enrollmentYear`: Năm nhập học
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Quản lý tài khoản
-- Admin tạo tài khoản cho Teacher và Student
-- Admin import hàng loạt từ file CSV
-- Admin khóa/mở khóa tài khoản
-- Admin reset mật khẩu người dùng
-- Teacher/Admin có thể reset mật khẩu sinh viên
-- Người dùng tự đổi mật khẩu
-- Người dùng cập nhật thông tin cá nhân và avatar
+#### Thực thể: Teacher
+- **Mô tả**: Thông tin chi tiết giảng viên
+- **Thuộc tính**:
+  - `userId`: ID User tham chiếu (bắt buộc, duy nhất)
+  - `teacherCode`: Mã giảng viên (bắt buộc, duy nhất)
+  - `department`: Bộ môn/Khoa
+  - `degree`: Học vị (Thạc sĩ/Tiến sĩ)
+  - `specialization`: Chuyên môn
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-### 2. Quản lý Khoa & Môn học (Faculties & Subjects)
+#### Chức năng:
+- **Đăng ký tài khoản**: Admin tạo tài khoản cho teacher và student
+- **Đăng nhập**: Xác thực email/password, trả JWT token
+- **Quên mật khẩu**: Gửi OTP qua email để reset
+- **Đổi mật khẩu**: Cập nhật mật khẩu mới
+- **Cập nhật profile**: Thay đổi thông tin cá nhân
+- **Khóa/Mở khóa tài khoản**: Admin quản lý trạng thái tài khoản
+- **Xóa tài khoản**: Soft delete, giữ dữ liệu liên quan
+- **Import hàng loạt**: Import từ CSV file
 
-#### Khoa (Faculty)
-- Admin tạo, sửa, xóa khoa
-- Mỗi khoa có: tên, mã khoa, mô tả
-- Giảng viên và sinh viên thuộc về một khoa
+#### Quy tắc nghiệp vụ:
+- Email phải duy nhất trong hệ thống
+- Password được hash bằng bcrypt (10 rounds)
+- Admin có thể tạo tất cả loại tài khoản
+- Teacher/Student không thể tự đăng ký
+- Soft delete để giữ dữ liệu liên quan
+- Mã sinh viên và mã giảng viên phải duy nhất
 
-#### Môn học (Subject)
-- Admin tạo, sửa, xóa môn học
-- Mỗi môn học có: tên, mã môn, số tín chỉ, khoa phụ trách
-- Môn học được gán vào lớp học
+### 2. Quản lý Khoa (Faculty Management)
 
-### 3. Quản lý Năm học & Học kỳ (Academic Years & Semesters)
+#### Thực thể: Faculty
+- **Mô tả**: Đơn vị học thuật trong trường
+- **Thuộc tính**:
+  - `name`: Tên khoa (bắt buộc)
+  - `code`: Mã khoa (duy nhất)
+  - `description`: Mô tả chi tiết
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Năm học
-- Admin tạo năm học (VD: 2024-2025)
-- Mỗi năm học có ngày bắt đầu và kết thúc
-- Đánh dấu năm học hiện tại
+#### Chức năng:
+- **Tạo khoa**: Admin tạo mới khoa
+- **Danh sách khoa**: Xem tất cả khoa đang hoạt động
+- **Cập nhật khoa**: Sửa thông tin khoa
+- **Xóa khoa**: Soft delete khi không còn môn học liên quan
 
-#### Học kỳ
-- Admin tạo học kỳ thuộc năm học (HK1, HK2, HK3)
-- Mỗi học kỳ có ngày bắt đầu và kết thúc
-- Lớp học được tạo trong học kỳ cụ thể
+#### Quy tắc nghiệp vụ:
+- Mã khoa phải duy nhất
+- Không thể xóa khoa khi còn môn học đang sử dụng
+- Khoa được dùng để phân loại môn học
+
+---
+
+### 3. Quản lý Môn học (Subject Management)
+
+#### Thực thể: Subject
+- **Mô tả**: Môn học trong chương trình đào tạo
+- **Thuộc tính**:
+  - `name`: Tên môn học (bắt buộc)
+  - `code`: Mã môn học (duy nhất)
+  - `credits`: Số tín chỉ (mặc định 3)
+  - `facultyId`: ID khoa tham chiếu
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
+
+#### Chức năng:
+- **Tạo môn học**: Admin/giảng viên tạo môn học mới
+- **Danh sách môn học**: Xem theo khoa hoặc tất cả
+- **Cập nhật môn học**: Sửa thông tin môn học
+- **Xóa môn học**: Soft delete khi không còn lớp học sử dụng
+
+#### Quy tắc nghiệp vụ:
+- Mã môn học phải duy nhất
+- Môn học phải thuộc một khoa
+- Không thể xóa khi còn lớp học đang hoạt động
+- Số tín chỉ mặc định là 3
 
 ### 4. Quản lý Lớp học (Class Management)
 
-#### Tạo & Cấu hình lớp
-- Admin tạo lớp học với: tên, mã lớp, môn học, giảng viên, học kỳ
-- Trạng thái lớp: active, completed, cancelled
-- Giới hạn số lượng sinh viên tối đa
+#### Thực thể: Class
+- **Mô tả**: Lớp học cụ thể của một môn học trong một học kỳ
+- **Thuộc tính**:
+  - `name`: Tên lớp (bắt buộc)
+  - `code`: Mã lớp (duy nhất)
+  - `subjectId`: ID môn học tham chiếu (bắt buộc)
+  - `teacherId`: ID giảng viên phụ trách (bắt buộc)
+  - `semester`: Học kỳ (HK1/HK2/HK3, bắt buộc)
+  - `year`: Năm học (2023-2024, bắt buộc)
+  - `status`: Trạng thái (active/closed/upcoming, mặc định active)
+  - `maxStudents`: Số sinh viên tối đa (mặc định 50)
+  - `totalLessons`: Tổng số buổi học
+  - `scheduledLessons`: Số buổi đã lên lịch
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Quản lý sinh viên trong lớp
-- Admin thêm sinh viên vào lớp (thủ công hoặc import CSV)
-- Admin xóa sinh viên khỏi lớp
-- Hiển thị danh sách sinh viên với trạng thái: Đi học, Bảo lưu, Đuổi học, Đình chỉ
-- Sinh viên bị đuổi học hoặc bảo lưu bị hạn chế truy cập
+#### Thực thể: Enrollment
+- **Mô tả**: Ghi danh sinh viên vào lớp học
+- **Thuộc tính**:
+  - `classId`: ID lớp học (bắt buộc)
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `status`: Trạng thái (active/completed/dropped/on_leave, mặc định active)
+  - `enrolledAt`: Thời gian ghi danh
+  - `completedAt`: Thời gian hoàn thành
+  - `cancelledAt`: Thời gian hủy
+  - `cancelReason`: Lý do hủy
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Xem lớp học
-- Teacher xem danh sách lớp mình phụ trách
-- Student xem danh sách lớp đã đăng ký
-- Hiển thị thông tin chi tiết lớp: sinh viên, bài tập, bảng điểm, điểm danh, lịch học, thông báo
+#### Chức năng:
+- **Tạo lớp học**: Admin/giảng viên tạo lớp mới
+- **Danh sách lớp học**: 
+  - Admin: Xem tất cả lớp
+  - Teacher: Xem lớp mình phụ trách
+  - Student: Xem lớp mình đã ghi danh
+- **Cập nhật lớp học**: Sửa thông tin lớp
+- **Xóa lớp học**: Soft delete khi không còn sinh viên
+- **Import sinh viên**: Import từ file Excel
+- **Ghi danh sinh viên**: Thêm/xóa sinh viên khỏi lớp
+- **Quản lý trạng thái sinh viên**: Đi học/Bảo lưu/Đuổi học/Đình chỉ
+
+#### Quy tắc nghiệp vụ:
+- Mỗi lớp chỉ có một giảng viên phụ trách
+- Giảng viên chỉ quản lý lớp mình phụ trách
+- Sinh viên chỉ xem lớp mình đã ghi danh
+- scheduledLessons không thể vượt quá totalLessons
+- Lớp học có thể ở các trạng thái: active, closed, upcoming
+- Enrollment có unique index trên (classId, studentId)
 
 
 ### 5. Quản lý Bài tập (Assignment Management)
 
-#### Tạo bài tập
-- Teacher tạo bài tập cho lớp với: tiêu đề, mô tả, hạn nộp, điểm tối đa
-- Loại bài tập: essay (tự luận), multiple_choice (trắc nghiệm)
-- Đính kèm file tài liệu (PDF, DOCX, PPT, v.v.)
-- Trạng thái: draft (nháp), published (đã xuất bản), closed (đã đóng)
+#### Thực thể: Assignment
+- **Mô tả**: Bài tập/bài kiểm tra của lớp học
+- **Thuộc tính**:
+  - `classId`: ID lớp học (bắt buộc)
+  - `title`: Tiêu đề bài tập (bắt buộc)
+  - `description`: Mô tả chi tiết
+  - `deadline`: Hạn nộp bài (bắt buộc)
+  - `maxScore`: Điểm tối đa (mặc định 10)
+  - `type`: Loại bài tập (individual/group, mặc định individual)
+  - `mode`: Hình thức (file/quiz, mặc định file)
+  - `durationMinutes`: Thời gian làm bài (phút, mặc định 60)
+  - `status`: Trạng thái (draft/published/closed, mặc định draft)
+  - `attachments`: File đính kèm [{url, name}]
+  - `lockedStudents`: Sinh viên bị khóa [{studentId, lockedAt, reason}]
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Bài tập trắc nghiệm
-- Teacher tạo câu hỏi với 4 đáp án (A, B, C, D)
-- Đánh dấu đáp án đúng
-- Hệ thống tự động chấm điểm khi sinh viên nộp
+#### Thực thể: Question
+- **Mô tả**: Câu hỏi cho bài tập trắc nghiệm
+- **Thuộc tính**:
+  - `assignmentId`: ID bài tập (bắt buộc)
+  - `content`: Nội dung câu hỏi (bắt buộc)
+  - `options`: Lựa chọn [{text, isCorrect}]
+  - `type`: Loại câu hỏi (single/multiple)
+  - `points`: Điểm câu hỏi (mặc định 1)
+  - `order`: Thứ tự hiển thị
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Nộp bài
-- Student nộp bài trước hạn (có thể nộp lại nhiều lần)
-- Đính kèm file bài làm
-- Trả lời câu hỏi trắc nghiệm
-- Trạng thái: submitted (đã nộp), graded (đã chấm), late (nộp muộn)
+#### Thực thể: Submission
+- **Mô tả**: Bài nộp của sinh viên cho bài tập
+- **Thuộc tính**:
+  - `assignmentId`: ID bài tập (bắt buộc)
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `content`: Nội dung bài làm (text)
+  - `files`: File nộp [{url, name}]
+  - `status`: Trạng thái (submitted/late/graded, mặc định submitted)
+  - `submittedAt`: Thời gian nộp bài
+  - `score`: Điểm đạt được
+  - `feedback`: Nhận xét của giảng viên
+  - `gradedBy`: ID giảng viên chấm điểm
+  - `gradedAt`: Thời gian chấm điểm
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Chấm điểm
-- Teacher xem danh sách bài nộp
-- Tự động chấm bài trắc nghiệm
-- Thủ công chấm bài tự luận với điểm và nhận xét
-- Sinh viên nhận thông báo khi bài được chấm
+#### Thực thể: SubmissionAnswer
+- **Mô tả**: Câu trả lời cho bài tập trắc nghiệm
+- **Thuộc tính**:
+  - `submissionId`: ID bài nộp (bắt buộc)
+  - `questionId`: ID câu hỏi (bắt buộc)
+  - `selectedOptions`: Lựa chọn sinh viên đã chọn
+  - `isCorrect`: Đáp án có đúng không
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
+
+#### Chức năng:
+- **Tạo bài tập**: Giảng viên tạo bài tập mới
+- **Soạn thảo bài tập**: Lưu nháp (status: draft)
+- **Xuất bản bài tập**: Đăng bài tập cho sinh viên (status: published)
+- **Đóng bài tập**: Ngừng nhận nộp bài (status: closed)
+- **Quản lý câu hỏi**: Thêm/sửa/xóa câu hỏi trắc nghiệm
+- **Upload file đính kèm**: Tài liệu cho bài tập
+- **Khóa sinh viên**: Ngăn sinh viên nộp bài
+- **Danh sách bài tập**: Xem theo lớp, trạng thái
+- **Nộp bài tập**: Sinh viên nộp bài trước deadline
+- **Nộp bài muộn**: Hệ thống đánh dấu late nếu sau deadline
+- **Upload file**: Nộp nhiều file cho bài tập
+- **Làm bài trắc nghiệm**: Làm và nộp bài trắc nghiệm trực tuyến
+- **Chấm điểm**: Giảng viên chấm điểm bài tập file
+- **Tự động chấm điểm**: Trắc nghiệm tự động chấm
+- **Xem bài nộp**: Sinh viên xem bài đã nộp và điểm
+- **Nhận xét**: Giảng viên gửi nhận xét cho sinh viên
+
+#### Quy tắc nghiệp vụ:
+- Bài tập phải có hạn nộp bài
+- Giảng viên có thể soạn thảo trước khi xuất bản
+- Sinh viên chỉ thấy bài tập đã xuất bản
+- Bài tập trắc nghiệm tự động chấm điểm
+- Bài tập file cần giảng viên chấm điểm thủ công
+- Có thể khóa sinh viên khỏi bài tập (với lý do)
+- Mỗi sinh viên chỉ nộp một lần cho mỗi bài tập
+- Hệ thống tự động đánh dấu late nếu nộp sau deadline
+- Trắc nghiệm tự động chấm điểm ngay khi nộp
+- Giảng viên có thể chấm lại nếu cần
+- Sinh viên có thể xem nhận xét sau khi được chấm điểm
 
 ### 6. Quản lý Bảng điểm (Gradebook Management)
 
-#### Cấu trúc điểm
-- Mỗi sinh viên trong lớp có bảng điểm riêng
-- Các cột điểm: Chuyên cần, Giữa kỳ, Cuối kỳ, Điểm tổng kết
-- Công thức: `Tổng kết = (Chuyên cần * 0.1) + (Giữa kỳ * 0.3) + (Cuối kỳ * 0.6)`
+#### Thực thể: Gradebook
+- **Mô tả**: Điểm tổng kết của sinh viên trong một lớp học
+- **Thuộc tính**:
+  - `classId`: ID lớp học (bắt buộc)
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `qt`: Điểm quá trình (mặc định 0)
+  - `gk`: Điểm giữa kỳ (mặc định 0)
+  - `ck`: Điểm cuối kỳ (mặc định 0)
+  - `total`: Điểm tổng kết (tự động tính)
+  - `averageScore`: Điểm trung bình bài tập (mặc định 0)
+  - `dismissedMarker`: Đánh dấu đuổi học
+    - `isDismissed`: Đã đuổi học
+    - `dismissedAt`: Thời gian đuổi
+    - `expulsionRecordId`: ID bản ghi đuổi học
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Nhập điểm
-- Teacher nhập điểm từng sinh viên
-- Teacher nhập hàng loạt (bulk update)
-- Điểm từ 0-10, làm tròn 2 chữ số thập phân
+#### Chức năng:
+- **Nhập điểm**: Giảng viên nhập điểm QT, GK, CK
+- **Tự động tính tổng**: Hệ thống tự động tính điểm tổng kết
+- **Công thức tính**: Total = (QT × 0.3 + GK × 0.2 + CK × 0.5)
+- **Cập nhật điểm**: Sửa điểm khi có sai sót
+- **Xem bảng điểm**: Sinh viên xem điểm của mình
+- **Xuất bảng điểm**: Export ra file Excel
+- **Thống kê điểm**: Báo cáo điểm theo lớp
+- **Tính điểm trung bình**: Tự động tính từ các bài trắc nghiệm
 
-#### Xuất bảng điểm
-- Teacher xuất bảng điểm ra file Excel
-- Bao gồm: MSSV, Họ tên, Email, các cột điểm, điểm tổng kết
-
-#### Xem điểm
-- Student xem điểm của mình trong từng lớp
-- Student xem tổng hợp điểm tất cả các lớp
+#### Quy tắc nghiệp vụ:
+- Công thức tính điểm tổng kết cố định: QT×30% + GK×20% + CK×50%
+- Điểm được làm tròn đến 1 chữ số thập phân
+- Mỗi sinh viên chỉ có một dòng điểm cho mỗi lớp
+- Giảng viên có thể cập nhật điểm bất cứ lúc nào
+- Điểm trung bình bài tập được tính từ các bài trắc nghiệm
+- Unique index trên (classId, studentId) để tránh trùng lặp
+- Điểm total được tự động tính trong pre-save hook
 
 ### 7. Quản lý Điểm danh (Attendance Management)
 
-#### Tạo buổi điểm danh
-- Teacher tạo buổi điểm danh cho lớp theo lịch học
-- Chọn ngày, tiết học, phòng học
-- Hệ thống kiểm tra trùng lặp lịch học
+#### Thực thể: AttendanceSession
+- **Mô tả**: Buổi điểm danh của một lớp học
+- **Thuộc tính**:
+  - `classId`: ID lớp học (bắt buộc)
+  - `date`: Ngày điểm danh (bắt buộc)
+  - `shift`: Ca học (sáng/chiều/tối)
+  - `code`: Mã QR code cho điểm danh
+  - `codeExpiredAt`: Thời gian hết hạn QR code
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Phương thức điểm danh
-1. **Mã QR Code**: Teacher tạo mã QR, sinh viên quét mã để điểm danh
-2. **Mã số**: Teacher tạo mã 6 số, sinh viên nhập mã để điểm danh
-3. **Thủ công**: Teacher điểm danh trực tiếp cho từng sinh viên
-4. **Điểm danh trực tiếp**: Sinh viên tự điểm danh không cần mã (dựa vào lịch học)
+#### Thực thể: AttendanceRecord
+- **Mô tả**: Ghi nhận điểm danh của sinh viên
+- **Thuộc tính**:
+  - `sessionId`: ID buổi điểm danh (bắt buộc)
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `status`: Trạng thái (present/absent/late, mặc định present)
+  - `checkedAt`: Thời gian điểm danh
+  - `checkInMethod`: Phương thức (manual/qr, mặc định manual)
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Trạng thái điểm danh
-- **present**: Có mặt
-- **absent**: Vắng mặt
-- **late**: Đi muộn
-- **excused**: Vắng có phép
+#### Thực thể: AttendanceWarning
+- **Mô tả**: Cảnh cáo về tỷ lệ vắng học
+- **Thuộc tính**:
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `classId`: ID lớp học (bắt buộc)
+  - `warningLevel`: Mức độ cảnh cáo (warning/critical, bắt buộc)
+  - `absenceRate`: Tỷ lệ vắng học (bắt buộc, 0-100)
+  - `totalSessions`: Tổng số buổi học (bắt buộc)
+  - `absentSessions`: Số buổi vắng (bắt buộc)
+  - `notifiedAt`: Thời gian gửi thông báo
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
 
-#### Thống kê điểm danh
-- Tỷ lệ điểm danh của từng sinh viên trong lớp
-- Tỷ lệ điểm danh trung bình của lớp
-- Báo cáo chi tiết theo buổi học
-- Cảnh báo sinh viên vắng nhiều (>20% số buổi)
+#### Chức năng:
+- **Tạo buổi điểm danh**: Giảng viên tạo session điểm danh
+- **Tạo QR code**: Tạo mã QR 6 số, có thời hạn 5 phút
+- **Điểm danh QR**: Sinh viên quét mã QR để điểm danh
+- **Điểm danh thủ công**: Giảng viên điểm danh thủ công cho sinh viên
+- **Điểm danh trực tiếp**: Sinh viên tự điểm danh dựa lịch học
+- **Xem lịch điểm danh**: Xem các buổi điểm danh của lớp
+- **Báo cáo điểm danh**: Thống kê tỷ lệ điểm danh
+- **Tự động cảnh cáo**: Tự động tạo cảnh cáo khi vắng > 20%
+- **Tính tỷ lệ điểm danh**: Tự động tính cho từng sinh viên và lớp
+- **Quản lý trạng thái**: present/absent/late/excused
+
+#### Quy tắc nghiệp vụ:
+- QR code có định dạng 6 chữ số
+- QR code hết hạn sau 5 phút
+- Sinh viên chỉ được điểm danh một lần mỗi buổi
+- Sinh viên không thuộc lớp không thể điểm danh
+- Điểm danh sau 15 phút tính là muộn (late)
+- Tự động tạo cảnh cáo khi tỷ lệ vắng > 20%
+- Giảng viên có thể điểm danh thủ công khi cần
+- Unique index trên (sessionId, studentId) để tránh trùng lặp
+- Hệ thống tự động tính tỷ lệ vắng học và tạo cảnh cáo
 
 
 ### 8. Quản lý Lịch học (Schedule Management)
@@ -276,107 +502,259 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 - Lọc lịch theo ngày
 - Phân trang 5 lịch/trang cho sinh viên
 
-### 9. Quản lý Thông báo (Notification & Announcement)
+### 9. Quản lý Thông báo (Notification Management)
 
-#### Thông báo lớp (Announcement)
-- Teacher tạo thông báo cho lớp
-- Nội dung: Tiêu đề, nội dung chi tiết
-- Tất cả sinh viên trong lớp nhận thông báo
-- Teacher xóa thông báo
+#### Thực thể: Announcement
+- **Mô tả**: Thông báo của lớp học
+- **Thuộc tính**:
+  - `classId`: ID lớp học (bắt buộc)
+  - `teacherId`: ID giảng viên tạo (bắt buộc)
+  - `title`: Tiêu đề thông báo (bắt buộc)
+  - `content`: Nội dung chi tiết (bắt buộc)
+  - `isPinned`: Ghim thông báo (mặc định false)
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Thông báo hệ thống (Notification)
-- Tự động gửi khi có sự kiện: bài tập mới, điểm mới, bài nộp được chấm, v.v.
-- Real-time qua Socket.io
-- Đánh dấu đã đọc/chưa đọc
-- Đánh dấu tất cả là đã đọc
-- Xóa thông báo
+#### Thực thể: Notification
+- **Mô tả**: Thông báo hệ thống cho người dùng
+- **Thuộc tính**:
+  - `title`: Tiêu đề thông báo (bắt buộc)
+  - `content`: Nội dung chi tiết (bắt buộc)
+  - `type`: Loại thông báo (info/warning/error/success)
+  - `recipientId`: ID người nhận
+  - `senderId`: ID người gửi
+  - `isRead`: Đã đọc (mặc định false)
+  - `priority`: Mức độ ưu tiên (low/medium/high)
+  - `actionUrl`: Link hành động (nếu có)
+  - `expiresAt`: Thời gian hết hạn
+  - `relatedId`: ID thực thể liên quan (bài tập, điểm, v.v.)
+  - `relatedType`: Loại thực thể liên quan
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
+
+#### Thực thể: NotificationRead
+- **Mô tả**: Theo dõi trạng thái đọc thông báo
+- **Thuộc tính**:
+  - `notificationId`: ID thông báo (bắt buộc)
+  - `userId`: ID người dùng (bắt buộc)
+  - `readAt`: Thời gian đọc
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
+
+#### Chức năng:
+- **Tạo thông báo lớp**: Giảng viên tạo thông báo cho lớp
+- **Tạo thông báo hệ thống**: Hệ thống tự động gửi thông báo
+- **Thông báo real-time**: Dùng Socket.io để推送 real-time
+- **Đánh dấu đã đọc**: Người dùng đánh dấu đã đọc
+- **Đánh dấu tất cả đã đọc**: Đánh dấu tất cả thông báo là đã đọc
+- **Danh sách thông báo**: Xem tất cả thông báo
+- **Lọc thông báo**: Theo loại, trạng thái đọc, mức độ ưu tiên
+- **Xóa thông báo**: Xóa thông báo đã đọc
+- **Thông báo hàng loạt**: Gửi cho nhiều người dùng
+- **Ghim thông báo**: Ghim thông báo quan trọng
+- **Tự động hết hạn**: Xóa thông báo sau thời gian quy định
+
+#### Quy tắc nghiệp vụ:
+- Thông báo được推送 real-time qua Socket.io
+- Thông báo có thể có mức độ ưu tiên khác nhau
+- Thông báo có thể hết hạn (tự động xóa)
+- Hệ thống tự động tạo thông báo cho các sự kiện quan trọng
+- Người dùng nhận thông báo theo vai trò và quyền
+- Thông báo lớp chỉ gửi cho sinh viên trong lớp
+- Có thể liên kết với các thực thể khác (bài tập, điểm, v.v.)
+- Thông báo có thể được ghim để hiển thị ưu tiên
 
 ### 10. Quản lý Bảo lưu (Academic Leave Management)
 
-#### Yêu cầu bảo lưu
-- Student gửi yêu cầu bảo lưu với: lý do, ngày bắt đầu, ngày kết thúc
-- Trạng thái: pending (chờ duyệt), approved (đã duyệt), rejected (từ chối)
+#### Thực thể: AcademicLeave
+- **Mô tả**: Xin nghỉ học tạm thời
+- **Thuộc tính**:
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `type`: Loại nghỉ (medical/personal/family, bắt buộc)
+  - `reason`: Lý do xin nghỉ (bắt buộc)
+  - `startDate`: Ngày bắt đầu nghỉ (bắt buộc)
+  - `endDate`: Ngày kết thúc nghỉ (bắt buộc)
+  - `duration`: Số ngày nghỉ
+  - `status`: Trạng thái (pending/approved/rejected, mặc định pending)
+  - `approvedBy`: ID người duyệt
+  - `approvedAt`: Thời gian duyệt
+  - `rejectionReason`: Lý do từ chối
+  - `documents`: Giấy tờ kèm theo [{url, name, type}]
+  - `isDeleted`: Đã xóa
+  - `createdAt`, `updatedAt`: Timestamps
 
-#### Duyệt bảo lưu
-- Admin xem danh sách yêu cầu bảo lưu
-- Admin phê duyệt hoặc từ chối với lý do
+#### Chức năng:
+- **Yêu cầu bảo lưu**: Sinh viên xin nghỉ học
+- **Duyệt bảo lưu**: Admin duyệt các quyết định bảo lưu
+- **Từ chối bảo lưu**: Admin từ chối với lý do
+- **Quản lý giấy tờ**: Upload và quản lý documents
+- **Theo dõi trạng thái**: Xem tiến trình xử lý
+- **Lịch sử bảo lưu**: Xem các lần bảo lưu của sinh viên
+- **Tự động kết thúc**: Hệ thống tự động kết thúc khi hết hạn
+- **Kết thúc sớm**: Admin có thể kết thúc bảo lưu sớm
+
+#### Quy tắc nghiệp vụ:
+- Sinh viên phải cung cấp lý do rõ ràng
+- Cần có giấy tờ chứng minh (nếu là medical leave)
+- Admin là người duyệt quyết định bảo lưu
 - Khi được duyệt, trạng thái sinh viên chuyển sang "on_leave"
-
-#### Hạn chế truy cập
-- Sinh viên bảo lưu không thể:
-  - Xem chi tiết lớp học
-  - Nộp bài tập
-  - Điểm danh
-  - Xem bảng điểm chi tiết
-- Sinh viên bảo lưu vẫn có thể:
-  - Đăng nhập
-  - Xem danh sách lớp (nhưng không vào được)
-  - Xem trạng thái bảo lưu của mình
-
-#### Kết thúc bảo lưu
-- Hệ thống tự động cập nhật trạng thái khi hết thời gian bảo lưu
-- Admin có thể kết thúc bảo lưu sớm
+- Sinh viên bảo lưu bị hạn chế truy cập các chức năng học tập
+- Hệ thống tự động khôi phục quyền khi hết hạn bảo lưu
+- Có thể từ chối nếu lý do không hợp lệ
+- Phải có ngày bắt đầu và kết thúc rõ ràng
+- Duration được tự động tính từ startDate và endDate
 
 
 ### 11. Quản lý Kỷ luật & Đuổi học (Expulsion & Discipline Management)
 
-#### Cảnh cáo học tập (Academic Warning)
-- Hệ thống tự động tạo cảnh cáo khi:
-  - Điểm tổng kết < 4.0: Cảnh cáo học tập
-  - Điểm tổng kết < 2.0: Cảnh cáo học vụ nghiêm trọng
-- Mức độ: low (thấp), medium (trung bình), high (cao), critical (nghiêm trọng)
-- Ghi nhận vào hồ sơ sinh viên
+#### Thực thể: AcademicWarning
+- **Mô tả**: Cảnh cáo học thuật cho sinh viên
+- **Thuộc tính**:
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `type`: Loại cảnh cáo (academic/attendance/disciplinary, bắt buộc)
+  - `reason`: Lý do cảnh cáo (bắt buộc)
+  - `severity`: Mức độ (warning/critical, bắt buộc)
+  - `status`: Trạng thái (active/resolved/expired, mặc định active)
+  - `resolvedAt`: Thời gian giải quyết
+  - `notes`: Ghi chú thêm
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
 
-#### Cảnh cáo điểm danh (Attendance Warning)
-- Hệ thống tự động tạo cảnh cáo khi:
-  - Vắng > 20% số buổi: Cảnh cáo chuyên cần
-  - Vắng > 30% số buổi: Cảnh cáo nghiêm trọng
-- Mức độ tương tự cảnh cáo học tập
+#### Thực thể: ViolationReport
+- **Mô tả**: Báo cáo vi phạm của sinh viên
+- **Thuộc tính**:
+  - `studentId`: ID sinh viên vi phạm (bắt buộc)
+  - `reporterId`: ID người báo cáo (bắt buộc)
+  - `classId`: ID lớp học liên quan
+  - `type`: Loại vi phạm (academic/disciplinary/attendance, bắt buộc)
+  - `description`: Mô tả chi tiết (bắt buộc)
+  - `evidence`: Bằng chứng [{url, name, type}]
+  - `severity`: Mức độ nghiêm trọng (low/medium/high/critical)
+  - `status`: Trạng thái (pending/investigated/resolved/dismissed)
+  - `resolvedAt`: Thời gian giải quyết
+  - `resolution`: Kết quả giải quyết
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
 
-#### Báo cáo vi phạm (Violation Report)
-- Teacher báo cáo vi phạm của sinh viên với:
-  - Loại vi phạm: academic_dishonesty (gian lận), misconduct (hành vi sai trái), attendance_violation (vi phạm điểm danh), other (khác)
-  - Mức độ nghiêm trọng: low, medium, high, critical
-  - Mô tả chi tiết
-  - Bằng chứng (file đính kèm, tối đa 5 file)
-- Trạng thái: pending (chờ xử lý), under_review (đang xem xét), converted_to_expulsion (chuyển thành đuổi học), dismissed (bác bỏ)
+#### Thực thể: ExpulsionRecord
+- **Mô tả**: Quyết định đuổi học sinh viên
+- **Thuộc tính**:
+  - `studentId`: ID sinh viên (bắt buộc)
+  - `classId`: ID lớp học liên quan
+  - `reason`: Lý do đuổi học (bắt buộc)
+  - `type`: Loại đuổi (academic/disciplinary/voluntary, bắt buộc)
+  - `effectiveDate`: Ngày có hiệu lực
+  - `academicYear`: Năm học
+  - `semester`: Học kỳ
+  - `status`: Trạng thái (pending/approved/cancelled, mặc định pending)
+  - `approvedBy`: ID người duyệt
+  - `approvedAt`: Thời gian duyệt
+  - `appealDeadline`: Hạn kháng cáo
+  - `appealReason`: Lý do kháng cáo
+  - `appealDocuments`: Tài liệu kháng cáo [{url, name, type}]
+  - `appealStatus`: Trạng thái kháng cáo (pending/approved/rejected)
+  - `appealResolvedAt`: Thời gian giải quyết kháng cáo
+  - `documents`: Tài liệu đính kèm [{url, name, type}]
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
 
-#### Quyết định đuổi học (Expulsion)
-- Admin tạo quyết định đuổi học với:
-  - Sinh viên bị đuổi
-  - Lý do đuổi học
-  - Ngày có hiệu lực
-  - Tài liệu đính kèm (quyết định chính thức)
-- Hoặc Admin chuyển báo cáo vi phạm thành quyết định đuổi học
-- Trạng thái: active (đang hiệu lực), appealed (đang kháng cáo), appeal_approved (kháng cáo được chấp nhận), appeal_rejected (kháng cáo bị từ chối)
+#### Chức năng:
+- **Tạo cảnh cáo**: Admin tạo cảnh cáo học thuật
+- **Tự động cảnh cáo**: Hệ thống tự động tạo cảnh cáo khi điểm < 4.0 hoặc vắng > 20%
+- **Báo cáo vi phạm**: Giảng viên/teacher báo cáo vi phạm
+- **Điều tra vi phạm**: Admin điều tra các báo cáo
+- **Quản lý bằng chứng**: Upload file bằng chứng
+- **Đuổi học**: Admin ra quyết định đuổi học
+- **Xin nghỉ học**: Sinh viên xin nghỉ học
+- **Duyệt kỷ luật**: Admin duyệt các quyết định kỷ luật
+- **Kháng cáo**: Sinh viên kháng cáo quyết định
+- **Theo dõi kỷ luật**: Xem lịch sử kỷ luật
+- **Thống kê kỷ luật**: Báo cáo và thống kê các trường hợp kỷ luật
 
-#### Hạn chế truy cập sinh viên bị đuổi
-- Sinh viên bị đuổi học không thể:
-  - Xem dashboard
-  - Xem danh sách lớp
-  - Truy cập bất kỳ chức năng học tập nào
-- Sinh viên bị đuổi học chỉ có thể:
-  - Đăng nhập
-  - Xem quyết định đuổi học
-  - Gửi kháng cáo
-
-#### Kháng cáo (Appeal)
-- Sinh viên bị đuổi có thể gửi kháng cáo với:
-  - Lý do kháng cáo
-  - Bằng chứng hỗ trợ (file đính kèm)
-- Admin xem xét kháng cáo:
-  - Chấp nhận: Hủy quyết định đuổi học, khôi phục quyền truy cập
-  - Từ chối: Giữ nguyên quyết định với lý do từ chối
-
-#### Thống kê kỷ luật
-- Admin xem thống kê:
-  - Tổng số sinh viên bị đuổi học
-  - Số lượng theo lý do
-  - Số lượng kháng cáo (chờ xử lý, chấp nhận, từ chối)
-  - Xu hướng theo thời gian
+#### Quy tắc nghiệp vụ:
+- Cảnh cáo có thể là warning hoặc critical
+- Đuổi học cần có lý do rõ ràng và bằng chứng
+- Sinh viên có quyền kháng cáo trong thời hạn quy định
+- Quyết định kỷ luật ảnh hưởng đến trạng thái sinh viên
+- Hệ thống tự động cập nhật trạng thái sinh viên
+- Cảnh cáo học tập: điểm tổng kết < 4.0 (warning), < 2.0 (critical)
+- Cảnh cáo điểm danh: vắng > 20% (warning), > 30% (critical)
+- Bất kỳ ai cũng có thể báo cáo vi phạm
+- Báo cáo cần có mô tả chi tiết và bằng chứng
+- Admin là người điều tra và giải quyết
+- Sinh viên được kháng cáo quyết định
+- Hệ thống lưu lịch sử tất cả các vi phạm
 
 
-### 12. Dashboard & Thống kê
+### 12. Hệ thống Chat (Chat System)
+
+#### Thực thể: Conversation
+- **Mô tả**: Cuộc trò chuyện giữa người dùng
+- **Thuộc tính**:
+  - `participants`: Danh sách người tham gia [userId]
+  - `type`: Loại cuộc trò chuyện (direct/group/class, bắt buộc)
+  - `classId`: ID lớp học (nếu là chat lớp)
+  - `title`: Tiêu đề (cho nhóm)
+  - `lastMessage`: Thông tin tin nhắn cuối cùng
+  - `isActive`: Đang hoạt động (mặc định true)
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
+  - `updatedAt`: Thời gian cập nhật
+
+#### Thực thể: Message
+- **Mô tả**: Tin nhắn trong cuộc trò chuyện
+- **Thuộc tính**:
+  - `conversationId`: ID cuộc trò chuyện (bắt buộc)
+  - `senderId`: ID người gửi (bắt buộc)
+  - `content`: Nội dung tin nhắn (bắt buộc)
+  - `type`: Loại tin nhắn (text/file/image, mặc định text)
+  - `fileUrl`: Link file (nếu là tin nhắn file)
+  - `fileName`: Tên file
+  - `fileSize`: Kích thước file
+  - `isRead`: Đã đọc (mặc định false)
+  - `readAt`: Thời gian đọc
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian gửi
+  - `updatedAt`: Thời gian cập nhật
+
+#### Thực thể: MessageRead
+- **Mô tả**: Theo dõi trạng thái đọc tin nhắn
+- **Thuộc tính**:
+  - `messageId`: ID tin nhắn (bắt buộc)
+  - `userId`: ID người dùng (bắt buộc)
+  - `readAt`: Thời gian đọc
+  - `isDeleted`: Đã xóa
+  - `createdAt`: Thời gian tạo
+
+#### Chức năng:
+- **Chat trực tiếp**: Chat 1-1 giữa người dùng
+- **Chat nhóm**: Tạo nhóm chat cho nhiều người
+- **Chat lớp học**: Chat cho tất cả thành viên lớp
+- **Gửi tin nhắn real-time**: Dùng Socket.io
+- **Gửi file**: Upload file trong chat
+- **Thông báo đã đọc**: Hiển thị trạng thái đọc
+- **Lịch sử chat**: Xem lại tin nhắn cũ
+- **Tìm kiếm tin nhắn**: Tìm trong cuộc trò chuyện
+- **Online status**: Hiển thị trạng thái online/offline
+- **Typing indicators**: Hiển thị khi người khác đang gõ
+- **Unread count**: Đếm số tin nhắn chưa đọc
+- **Tìm kiếm người dùng**: Tìm để bắt đầu cuộc trò chuyện mới
+
+#### Quy tắc nghiệp vụ:
+- Chat hoạt động real-time qua Socket.io
+- Tin nhắn được lưu trữ để xem lại
+- Người dùng chỉ thấy chat của mình tham gia
+- File được upload và lưu trữ an toàn
+- Hệ thống thông báo khi có tin nhắn mới
+- Có thể tạo chat 1-1, nhóm, hoặc chat lớp
+- Tin nhắn có thể là text, file, hoặc image
+- Hệ thống theo dõi trạng thái đọc của từng người dùng
+- Chat lớp tự động tạo khi có sinh viên trong lớp
+- Người dùng có thể rời khỏi nhóm chat
+
+---
+
+### 13. Dashboard & Thống kê
 
 #### Admin Dashboard
 - Tổng số người dùng (Admin, Teacher, Student)
@@ -410,8 +788,8 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 
 | Method | Endpoint | Auth | Role | Mô tả |
 |--------|----------|------|------|-------|
-| POST | `/auth/login` | ❌ | All | Đăng nhập |
-| POST | `/auth/logout` | ❌ | All | Đăng xuất |
+| POST | `/auth/login` | ❌ | All | Đăng nhập với email/password |
+| POST | `/auth/logout` | ❌ | All | Đăng xuất, xóa refresh token |
 | POST | `/auth/refresh-token` | ❌ | All | Làm mới access token |
 | POST | `/auth/forgot-password` | ❌ | All | Gửi OTP qua email |
 | POST | `/auth/verify-otp` | ❌ | All | Xác thực OTP |
@@ -420,6 +798,157 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 | PUT | `/auth/me` | ✅ | All | Cập nhật thông tin cá nhân |
 | PUT | `/auth/change-password` | ✅ | All | Đổi mật khẩu |
 | PUT | `/auth/me/avatar` | ✅ | All | Upload avatar |
+
+### User Management (`/api/users`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/users` | ✅ | Admin | Danh sách người dùng |
+| POST | `/users` | ✅ | Admin | Tạo người dùng mới |
+| GET | `/users/:id` | ✅ | Admin | Chi tiết người dùng |
+| PUT | `/users/:id` | ✅ | Admin | Cập nhật người dùng |
+| DELETE | `/users/:id` | ✅ | Admin | Xóa người dùng |
+| PATCH | `/users/:id/lock` | ✅ | Admin | Khóa tài khoản |
+| PATCH | `/users/:id/unlock` | ✅ | Admin | Mở khóa tài khoản |
+| PATCH | `/users/:id/reset-password` | ✅ | Admin | Reset mật khẩu |
+| POST | `/users/import` | ✅ | Admin | Import từ CSV |
+
+### Faculty Management (`/api/faculties`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/faculties` | ✅ | All | Danh sách khoa |
+| POST | `/faculties` | ✅ | Admin | Tạo khoa mới |
+| GET | `/faculties/:id` | ✅ | All | Chi tiết khoa |
+| PUT | `/faculties/:id` | ✅ | Admin | Cập nhật khoa |
+| DELETE | `/faculties/:id` | ✅ | Admin | Xóa khoa |
+
+### Subject Management (`/api/subjects`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/subjects` | ✅ | All | Danh sách môn học |
+| POST | `/subjects` | ✅ | Admin | Tạo môn học mới |
+| GET | `/subjects/:id` | ✅ | All | Chi tiết môn học |
+| PUT | `/subjects/:id` | ✅ | Admin | Cập nhật môn học |
+| DELETE | `/subjects/:id` | ✅ | Admin | Xóa môn học |
+| GET | `/subjects/faculty/:facultyId` | ✅ | All | Môn học theo khoa |
+
+### Class Management (`/api/classes`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/classes` | ✅ | All | Danh sách lớp học |
+| POST | `/classes` | ✅ | Admin | Tạo lớp mới |
+| GET | `/classes/:id` | ✅ | All | Chi tiết lớp học |
+| PUT | `/classes/:id` | ✅ | Admin | Cập nhật lớp |
+| DELETE | `/classes/:id` | ✅ | Admin | Xóa lớp |
+| GET | `/classes/my-classes` | ✅ | Teacher, Student | Lớp của tôi |
+| GET | `/classes/:id/students` | ✅ | All | Danh sách sinh viên |
+| POST | `/classes/:id/students` | ✅ | Admin | Thêm sinh viên |
+| DELETE | `/classes/:id/students/:studentId` | ✅ | Admin | Xóa sinh viên |
+| POST | `/classes/:id/import-students` | ✅ | Admin | Import sinh viên CSV |
+
+### Assignment Management (`/api/assignments`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/classes/:classId/assignments` | ✅ | All | Danh sách bài tập lớp |
+| POST | `/classes/:classId/assignments` | ✅ | Teacher | Tạo bài tập |
+| GET | `/assignments/:id` | ✅ | All | Chi tiết bài tập |
+| PUT | `/assignments/:id` | ✅ | Teacher | Cập nhật bài tập |
+| DELETE | `/assignments/:id` | ✅ | Teacher | Xóa bài tập |
+| PATCH | `/assignments/:id/publish` | ✅ | Teacher | Xuất bản bài tập |
+| PATCH | `/assignments/:id/close` | ✅ | Teacher | Đóng bài tập |
+| GET | `/assignments/:id/questions` | ✅ | Teacher | Danh sách câu hỏi |
+| POST | `/assignments/:id/questions` | ✅ | Teacher | Thêm câu hỏi |
+
+### Submission Management (`/api/submissions`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| POST | `/assignments/:id/submit` | ✅ | Student | Nộp bài |
+| PUT | `/assignments/:id/resubmit` | ✅ | Student | Nộp lại |
+| GET | `/assignments/:id/my-submission` | ✅ | Student | Bài nộp của tôi |
+| GET | `/assignments/:id/submissions` | ✅ | Teacher | Danh sách bài nộp |
+| GET | `/submissions/:id` | ✅ | Teacher, Student | Chi tiết bài nộp |
+| POST | `/submissions/:id/grade` | ✅ | Teacher | Chấm điểm |
+| PUT | `/submissions/:id/grade` | ✅ | Teacher | Cập nhật điểm |
+
+### Gradebook Management (`/api/gradebook`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/classes/:classId/gradebook` | ✅ | Teacher, Student | Bảng điểm lớp |
+| PUT | `/classes/:classId/gradebook/:studentId` | ✅ | Teacher | Cập nhật điểm |
+| POST | `/classes/:classId/gradebook/bulk` | ✅ | Teacher | Cập nhật hàng loạt |
+| GET | `/classes/:classId/gradebook/export` | ✅ | Teacher | Xuất Excel |
+| GET | `/students/my-grades` | ✅ | Student | Điểm của tôi |
+
+### Attendance Management (`/api/attendance`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/classes/:classId/attendance/sessions` | ✅ | All | Danh sách buổi điểm danh |
+| POST | `/classes/:classId/attendance/sessions` | ✅ | Teacher | Tạo buổi điểm danh |
+| POST | `/attendance/sessions/:id/generate-code` | ✅ | Teacher | Tạo QR code |
+| POST | `/attendance/check-in` | ✅ | Student | Điểm danh QR |
+| POST | `/attendance/manual-check-in` | ✅ | Teacher | Điểm danh thủ công |
+| GET | `/classes/:classId/attendance/report` | ✅ | Teacher | Báo cáo điểm danh |
+| GET | `/attendance/my-attendance/:classId` | ✅ | Student | Điểm danh của tôi |
+
+### Notification Management (`/api/notifications`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/notifications` | ✅ | All | Danh sách thông báo |
+| POST | `/notifications` | ✅ | Admin | Gửi thông báo |
+| PATCH | `/notifications/:id/read` | ✅ | All | Đánh dấu đã đọc |
+| PATCH | `/notifications/read-all` | ✅ | All | Đọc tất cả |
+| DELETE | `/notifications/:id` | ✅ | All | Xóa thông báo |
+
+### Chat System (`/api/chat`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/chat/conversations` | ✅ | All | Danh sách cuộc trò chuyện |
+| POST | `/chat/conversations` | ✅ | All | Tạo cuộc trò chuyện |
+| GET | `/chat/conversations/:id` | ✅ | All | Chi tiết cuộc trò chuyện |
+| GET | `/chat/conversations/:id/messages` | ✅ | All | Danh sách tin nhắn |
+| POST | `/chat/conversations/:id/messages` | ✅ | All | Gửi tin nhắn |
+| PATCH | `/chat/conversations/:id/read` | ✅ | All | Đánh dấu đã đọc |
+| GET | `/chat/users/search` | ✅ | All | Tìm kiếm người dùng |
+| GET | `/chat/unread-count` | ✅ | All | Số tin nhắn chưa đọc |
+
+### Academic Leave (`/api/academic-leave`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| POST | `/academic-leave` | ✅ | Student | Gửi yêu cầu bảo lưu |
+| GET | `/academic-leave/my-requests` | ✅ | Student | Yêu cầu của tôi |
+| GET | `/academic-leave` | ✅ | Admin | Danh sách yêu cầu |
+| PUT | `/academic-leave/:id/approve` | ✅ | Admin | Phê duyệt |
+| PUT | `/academic-leave/:id/reject` | ✅ | Admin | Từ chối |
+
+### Discipline Management (`/api/discipline`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/discipline/warnings` | ✅ | Admin, Teacher | Danh sách cảnh cáo |
+| POST | `/discipline/violations` | ✅ | Teacher | Báo cáo vi phạm |
+| GET | `/discipline/violations` | ✅ | Admin | Danh sách vi phạm |
+| POST | `/discipline/expulsions` | ✅ | Admin | Tạo quyết định đuổi học |
+| GET | `/discipline/expulsions` | ✅ | Admin | Danh sách đuổi học |
+| PUT | `/discipline/expulsions/:id/appeal` | ✅ | Student | Kháng cáo |
+| PUT | `/discipline/expulsions/:id/approve-appeal` | ✅ | Admin | Chấp nhận kháng cáo |
+
+### Dashboard (`/api/dashboard`)
+
+| Method | Endpoint | Auth | Role | Mô tả |
+|--------|----------|------|------|-------|
+| GET | `/dashboard/admin` | ✅ | Admin | Dashboard Admin |
+| GET | `/dashboard/teacher` | ✅ | Teacher | Dashboard Teacher |
+| GET | `/dashboard/student` | ✅ | Student | Dashboard Student |
 
 ### Admin User Management (`/api/admin`)
 
@@ -835,99 +1364,200 @@ Sau khi chạy `npm run seed`, các tài khoản sau sẽ được tạo:
 - ✅ Real-time typing indicators
 - ✅ Auto-refresh dashboard data
 
-## Cấu trúc Database
+## Cơ sở dữ liệu
 
-### Collections chính
+### Thực thể (Entities)
 
-#### Users
-- Thông tin người dùng: email, password, role, status
-- Liên kết với Student/Teacher collection
-- Trạng thái: active, on_leave, dismissed, suspended
+#### 1. User (Người dùng)
+- **Mục đích**: Lưu trữ thông tin xác thực người dùng
+- **Key fields**: email, password, role, name, status
+- **Indexes**: email (unique), role, studentCode, teacherCode
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Students
-- Thông tin sinh viên: studentCode, faculty, enrollmentYear
-- Liên kết với User
+#### 2. Student (Sinh viên)
+- **Mục đích**: Lưu trữ thông tin chi tiết sinh viên
+- **Key fields**: userId (ref User), studentCode, classId, gpa
+- **Indexes**: userId (unique), studentCode (unique)
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Teachers
-- Thông tin giảng viên: teacherCode, faculty, specialization
-- Liên kết với User
+#### 3. Teacher (Giảng viên)
+- **Mục đích**: Lưu trữ thông tin chi tiết giảng viên
+- **Key fields**: userId (ref User), teacherCode, department, degree
+- **Indexes**: userId (unique), teacherCode (unique)
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Faculties
-- Khoa: name, code, description
+#### 4. Faculty (Khoa)
+- **Mục đích**: Phân loại môn học theo khoa
+- **Key fields**: name, code, description
+- **Indexes**: code (unique)
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Subjects
-- Môn học: name, code, credits, faculty
+#### 5. Subject (Môn học)
+- **Mục đích**: Lưu trữ thông tin môn học
+- **Key fields**: name, code, credits, facultyId
+- **Indexes**: code (unique)
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### AcademicYears
-- Năm học: name, startDate, endDate, isCurrent
+#### 6. Class (Lớp học)
+- **Mục đích**: Lớp học cụ thể của môn học
+- **Key fields**: name, subjectId, teacherId, semester, year, status
+- **Indexes**: teacherId, subjectId, isDeleted
+- **Soft delete**: isDeleted flag
+- **Validation**: scheduledLessons ≤ totalLessons
+- **Timestamps**: createdAt, updatedAt
 
-#### Semesters
-- Học kỳ: name, academicYear, startDate, endDate
+#### 7. Enrollment (Ghi danh)
+- **Mục đích**: Quan hệ sinh viên - lớp học
+- **Key fields**: classId, studentId, status, enrolledAt
+- **Indexes**: (classId, studentId) unique, studentId, classId
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Classes
-- Lớp học: name, code, subject, teacher, semester, status
-- Giới hạn số lượng sinh viên
-- Trạng thái: active, completed, cancelled
+#### 8. AttendanceSession (Buổi điểm danh)
+- **Mục đích**: Buổi điểm danh của lớp học
+- **Key fields**: classId, date, code, codeExpiredAt, shift
+- **Indexes**: classId, date, isDeleted
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Enrollments
-- Đăng ký lớp học: student, class, status
-- Trạng thái: enrolled, on_leave, dismissed, suspended
+#### 9. AttendanceRecord (Ghi nhận điểm danh)
+- **Mục đích**: Ghi nhận điểm danh sinh viên
+- **Key fields**: sessionId, studentId, status, checkInMethod, checkedAt
+- **Indexes**: (sessionId, studentId) unique
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Assignments
-- Bài tập: title, description, class, dueDate, maxScore, type
-- Loại: essay, multiple_choice
-- Trạng thái: draft, published, closed
+#### 10. AttendanceWarning (Cảnh cáo điểm danh)
+- **Mục đích**: Cảnh cáo về tỷ lệ vắng học
+- **Key fields**: studentId, classId, warningLevel, absenceRate
+- **Indexes**: studentId, classId, warningLevel
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt
 
-#### Questions
-- Câu hỏi trắc nghiệm: assignment, question, options, correctAnswer
+#### 11. Assignment (Bài tập)
+- **Mục đích**: Bài tập/bài kiểm tra của lớp học
+- **Key fields**: classId, title, deadline, type, mode, status
+- **Indexes**: classId, deadline, isDeleted
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Submissions
-- Bài nộp: assignment, student, content, score, feedback
-- File đính kèm, thời gian nộp
+#### 12. Question (Câu hỏi)
+- **Mục đích**: Câu hỏi cho bài tập trắc nghiệm
+- **Key fields**: assignmentId, content, options, type, points
+- **Indexes**: assignmentId, order
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Gradebooks
-- Bảng điểm: student, class, attendance, midterm, final, total
+#### 13. Submission (Bài nộp)
+- **Mục đích**: Bài nộp của sinh viên
+- **Key fields**: assignmentId, studentId, status, score, submittedAt
+- **Indexes**: (assignmentId, studentId) unique
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### AttendanceSessions
-- Buổi điểm danh: class, date, room, code, qrCode
+#### 14. Gradebook (Bảng điểm)
+- **Mục đích**: Điểm tổng kết sinh viên
+- **Key fields**: classId, studentId, qt, gk, ck, total
+- **Indexes**: (classId, studentId) unique
+- **Soft delete**: isDeleted flag
+- **Auto-calculation**: total = (qt × 0.3 + gk × 0.2 + ck × 0.5)
+- **Timestamps**: createdAt, updatedAt
 
-#### AttendanceRecords
-- Bản ghi điểm danh: session, student, status, checkInTime
+#### 15. Announcement (Thông báo lớp)
+- **Mục đích**: Thông báo của lớp học
+- **Key fields**: classId, teacherId, title, content
+- **Indexes**: classId, teacherId, isDeleted
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### Schedules
-- Lịch học: class, dayOfWeek, startDate, startTime, endTime, room
+#### 16. Notification (Thông báo hệ thống)
+- **Mục đích**: Thông báo hệ thống
+- **Key fields**: title, content, recipientId, type, priority
+- **Indexes**: recipientId, isRead, createdAt
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt
 
-#### Announcements
-- Thông báo lớp: class, title, content, teacher
+#### 17. AcademicWarning (Cảnh cáo học thuật)
+- **Mục đích**: Cảnh cáo về kết quả học tập
+- **Key fields**: studentId, type, reason, severity, status
+- **Indexes**: studentId, type, status
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt
 
-#### Notifications
-- Thông báo hệ thống: user, title, content, type, isRead
+#### 18. ViolationReport (Báo cáo vi phạm)
+- **Mục đích**: Báo cáo vi phạm kỷ luật
+- **Key fields**: studentId, reporterId, type, severity, status
+- **Indexes**: studentId, reporterId, status
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt
 
-#### AcademicLeave
-- Yêu cầu bảo lưu: student, reason, startDate, endDate, status
+#### 19. ExpulsionRecord (Quyết định đuổi học)
+- **Mục đích**: Quyết định đuổi học sinh viên
+- **Key fields**: studentId, classId, reason, type, status
+- **Indexes**: studentId, status, effectiveDate
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt
 
-#### AcademicWarnings
-- Cảnh cáo học tập: student, class, type, level, reason
+#### 20. AcademicLeave (Nghỉ học)
+- **Mục đích**: Xin nghỉ học tạm thời
+- **Key fields**: studentId, type, startDate, endDate, status
+- **Indexes**: studentId, status, startDate
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### AttendanceWarnings
-- Cảnh cáo điểm danh: student, class, level, absenceRate
+#### 21. Conversation (Cuộc trò chuyện)
+- **Mục đích**: Cuộc trò chuyện chat
+- **Key fields**: participants, type, classId, lastMessage
+- **Indexes**: participants, type, isActive
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### ViolationReports
-- Báo cáo vi phạm: student, teacher, type, severity, description
-- File bằng chứng, trạng thái xử lý
+#### 22. Message (Tin nhắn)
+- **Mục đích**: Tin nhắn trong cuộc trò chuyện
+- **Key fields**: conversationId, senderId, content, type
+- **Indexes**: conversationId, senderId, createdAt
+- **Soft delete**: isDeleted flag
+- **Timestamps**: createdAt, updatedAt
 
-#### ExpulsionRecords
-- Quyết định đuổi học: student, reason, effectiveDate, status
-- File đính kèm, thông tin kháng cáo
+### Quan hệ thực thể
 
-#### Otp
-- Mã OTP: email, code, expiresAt, isUsed
+#### Core Relationships:
+1. **User ↔ Student**: 1-1 (userId)
+2. **User ↔ Teacher**: 1-1 (userId)
+3. **Faculty → Subject**: 1-N (facultyId)
+4. **Subject → Class**: 1-N (subjectId)
+5. **User (Teacher) → Class**: 1-N (teacherId)
+6. **User (Student) ↔ Class**: N-M (qua Enrollment)
+7. **Class → AttendanceSession**: 1-N (classId)
+8. **AttendanceSession → AttendanceRecord**: 1-N (sessionId)
+9. **User (Student) → AttendanceRecord**: 1-N (studentId)
+10. **Class → Assignment**: 1-N (classId)
+11. **Assignment → Question**: 1-N (assignmentId)
+12. **Assignment → Submission**: 1-N (assignmentId)
+13. **User (Student) → Submission**: 1-N (studentId)
+14. **Class → Gradebook**: 1-N (classId)
+15. **User (Student) → Gradebook**: 1-N (studentId)
+16. **Class → Announcement**: 1-N (classId)
+17. **User → Notification**: 1-N (recipientId/senderId)
+18. **User (Student) → AcademicWarning**: 1-N (studentId)
+19. **User (Student) → ViolationReport**: 1-N (studentId)
+20. **User (Student) → ExpulsionRecord**: 1-N (studentId)
+21. **User (Student) → AcademicLeave**: 1-N (studentId)
+22. **Conversation → Message**: 1-N (conversationId)
+23. **User → Message**: 1-N (senderId)
+24. **Class → Conversation**: 1-N (classId, cho chat lớp)
 
-#### Conversations
-- Cuộc trò chuyện: participants, lastMessage, createdAt
-
-#### Messages
-- Tin nhắn: conversation, sender, content, readAt
+#### Business Rules:
+- **Soft Delete**: Tất cả các thực thể đều dùng soft delete (isDeleted)
+- **Timestamps**: Tất cả đều có createdAt, updatedAt
+- **Unique Constraints**: Đảm bảo tính toàn vẹn dữ liệu
+- **Indexing**: Tối ưu performance cho các query thường dùng
+- **Referential Integrity**: Dùng ObjectId references để đảm bảo liên kết
 
 ### Mối quan hệ giữa Collections
 

@@ -54,7 +54,12 @@ const ConversationItem = memo(forwardRef(({ conversation, isActive, isFocused, o
 
   // Memoize truncated message
   const truncatedMessage = useMemo(() => {
-    const text = lastMessage?.content || 'Chưa có tin nhắn';
+    // Handle missing or invalid lastMessage
+    if (!lastMessage || !lastMessage.content || lastMessage.content.trim() === '') {
+      return 'Chưa có tin nhắn';
+    }
+    
+    const text = lastMessage.content;
     const maxLength = 50;
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';

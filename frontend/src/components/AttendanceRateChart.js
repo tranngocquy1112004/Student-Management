@@ -49,7 +49,7 @@ const AttendanceRateChart = ({ teacherId }) => {
           
           // Prepare chart data
           const labels = rates.map(r => r.className);
-          const data = rates.map(r => r.rate);
+          const data = rates.map(r => r.attendanceRate);
           
           setChartData({
             labels,

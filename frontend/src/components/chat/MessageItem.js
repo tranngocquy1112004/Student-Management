@@ -38,18 +38,35 @@ const MessageItem = memo(({ message, isOwn, showSenderInfo, formatTime }) => {
     return { icon: '⏳', text: 'Đang gửi...' };
   }, [message]);
 
-  if (!message) return null;
+  if (!message) {
+    console.error('❌ MessageItem: No message provided');
+    return null;
+  }
 
-  const sender = message.senderId;
+  // Extract sender info safely
+  const sender = typeof message.senderId === 'object' ? message.senderId : null;
   const senderName = sender?.name || 'Unknown';
   const senderAvatar = sender?.avatar;
-  const isPending = message.pending;
+  const isPending = message.pending || false;
   const retryCount = message.retryCount || 0;
-  const messageContent = message.content || '';
+  
+  // Ensure content is always a string
+  const messageContent = (message.content || '').toString().trim();
 
-  // Debug log to check message content
-  if (!messageContent || messageContent.trim() === '') {
-    console.warn('⚠️ Empty message content:', message);
+  // Debug log for empty or invalid messages
+  if (!messageContent) {
+    console.error('❌ Empty or invalid message content:', {
+      messageId: message._id,
+      hasContent: !!message.content,
+      contentType: typeof message.content,
+      contentValue: message.content,
+      senderId: message.senderId,
+      senderIdType: typeof message.senderId,
+      isPending: message.pending,
+      isOwn,
+      fullMessage: message
+    });
+    return null; // Don't render empty messages
   }
 
   return (
