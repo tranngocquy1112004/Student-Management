@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERD - Hệ thống Quản lý Lớp học</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-green: #10b981;
+    --accent-yellow: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #8b5cf6;
+    --accent-pink: #ec4899;
+    --accent-orange: #f97316;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --pk: #fbbf24;
+    --fk: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--text);
+    overflow-x: auto;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #0a0e1a 0%, #111827 50%, #0d1a2d 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent-cyan);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .header p { color: var(--text-muted); font-size: 0.8rem; margin-top: 2px; }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 2px;
+  }
+
+  .canvas {
+    padding: 40px;
+    min-width: 2400px;
+  }
+
+  .group-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .section {
+    margin-bottom: 60px;
+  }
+
+  .entities-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .entity {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-width: 230px;
+    max-width: 280px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+  }
+
+  .entity:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  .entity-header {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .entity-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .entity-badge {
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .entity-body { padding: 4px 0; }
+
+  .attr-row {
+    padding: 5px 16px;
+    display: grid;
+    grid-template-columns: 16px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.72rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: background 0.1s;
+  }
+
+  .attr-row:hover { background: rgba(255,255,255,0.03); }
+  .attr-row:last-child { border-bottom: none; }
+
+  .attr-icon { font-size: 0.6rem; text-align: center; }
+  .attr-name { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+  .attr-name.pk { color: var(--pk); font-weight: 700; }
+  .attr-name.fk { color: var(--fk); }
+  .attr-type {
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255,255,255,0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 4px 0;
+  }
+
+  /* Color themes per module */
+  .mod-auth .entity-header { background: linear-gradient(135deg, #1e1b4b, #312e81); }
+  .mod-auth .entity-name { color: #a5b4fc; }
+  .mod-auth .entity-badge { background: #312e81; color: #a5b4fc; }
+  .mod-auth { border-color: #4338ca; }
+
+  .mod-user .entity-header { background: linear-gradient(135deg, #0f2820, #134e3d); }
+  .mod-user .entity-name { color: #6ee7b7; }
+  .mod-user .entity-badge { background: #134e3d; color: #6ee7b7; }
+  .mod-user { border-color: #059669; }
+
+  .mod-academic .entity-header { background: linear-gradient(135deg, #1a1035, #2d1a5e); }
+  .mod-academic .entity-name { color: #c4b5fd; }
+  .mod-academic .entity-badge { background: #2d1a5e; color: #c4b5fd; }
+  .mod-academic { border-color: #7c3aed; }
+
+  .mod-assignment .entity-header { background: linear-gradient(135deg, #1a0d2e, #3b1a5e); }
+  .mod-assignment .entity-name { color: #f0abfc; }
+  .mod-assignment .entity-badge { background: #3b1a5e; color: #f0abfc; }
+  .mod-assignment { border-color: #a21caf; }
+
+  .mod-attendance .entity-header { background: linear-gradient(135deg, #0c1a0c, #1a3a1a); }
+  .mod-attendance .entity-name { color: #86efac; }
+  .mod-attendance .entity-badge { background: #1a3a1a; color: #86efac; }
+  .mod-attendance { border-color: #16a34a; }
+
+  .mod-discipline .entity-header { background: linear-gradient(135deg, #1a0808, #3a0f0f); }
+  .mod-discipline .entity-name { color: #fca5a5; }
+  .mod-discipline .entity-badge { background: #3a0f0f; color: #fca5a5; }
+  .mod-discipline { border-color: #dc2626; }
+
+  .mod-chat .entity-header { background: linear-gradient(135deg, #0a1a2e, #0f2e4e); }
+  .mod-chat .entity-name { color: #7dd3fc; }
+  .mod-chat .entity-badge { background: #0f2e4e; color: #7dd3fc; }
+  .mod-chat { border-color: #0284c7; }
+
+  .mod-notify .entity-header { background: linear-gradient(135deg, #1a120a, #3a2a0a); }
+  .mod-notify .entity-name { color: #fde68a; }
+  .mod-notify .entity-badge { background: #3a2a0a; color: #fde68a; }
+  .mod-notify { border-color: #d97706; }
+
+  /* Section headers */
+  .sec-auth .group-label { background: #312e81; color: #a5b4fc; }
+  .sec-user .group-label { background: #134e3d; color: #6ee7b7; }
+  .sec-academic .group-label { background: #2d1a5e; color: #c4b5fd; }
+  .sec-assignment .group-label { background: #3b1a5e; color: #f0abfc; }
+  .sec-attendance .group-label { background: #1a3a1a; color: #86efac; }
+  .sec-discipline .group-label { background: #3a0f0f; color: #fca5a5; }
+  .sec-chat .group-label { background: #0f2e4e; color: #7dd3fc; }
+  .sec-notify .group-label { background: #3a2a0a; color: #fde68a; }
+
+  /* Relationship table */
+  .rel-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 40px;
+  }
+
+  .rel-header {
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #0d1a2d, #111827);
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface2);
+    padding: 10px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 16px;
+    font-size: 0.73rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+
+  .cardinality {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+  .c-11 { background: #134e3d; color: #6ee7b7; }
+  .c-1n { background: #1e3a5f; color: #7dd3fc; }
+  .c-mn { background: #2d1a5e; color: #c4b5fd; }
+
+  .cascade-d { color: #fca5a5; }
+  .cascade-r { color: #fde68a; }
+  .cascade-n { color: var(--text-muted); }
+
+  .from-e { color: #a5b4fc; }
+  .to-e { color: #86efac; }
+
+  .formula-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+  }
+  .formula-title { color: var(--accent-cyan); margin-bottom: 8px; font-size: 0.65rem; letter-spacing: 2px; }
+  .formula { color: var(--accent-green); line-height: 2; }
+  .formula span { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>ERD — Hệ thống Quản lý Lớp học</h1>
+    <p>25 Entities · 33 Relationships · MongoDB Schema</p>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div> PK (Primary Key)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div> FK (Foreign Key)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> Unique</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div> Attribute</div>
+  </div>
+</div>
+
+<div class="canvas">
+
+  <!-- MODULE: AUTH / USER -->
+  <div class="section sec-auth">
+    <div class="group-label">01 · Authentication &amp; User Management</div>
+    <div class="entities-row">
+
+      <!-- User -->
+      <div class="entity mod-auth">
+        <div class="entity-header">
+          <span class="entity-name">User</span>
+          <span class="entity-badge">AUTH</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">name</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">email</span><span class="attr-type">String* UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">password</span><span class="attr-type">String* hash</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">role</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">avatar</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">phone</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">studentCode</span><span class="attr-type">String UQ</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">teacherCode</span><span class="attr-type">String UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isLocked</span><span class="attr-type">Boolean</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">createdAt</span><span class="attr-type">Timestamp</span></div>
+        </div>
+      </div>
+
+      <!-- RefreshToken -->
+      <div class="entity mod-auth">
+        <div class="entity-header">
+          <span class="entity-name">RefreshToken</span>
+          <span class="entity-badge">AUTH</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">userId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">token</span><span class="attr-type">String* UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">expiresAt</span><span class="attr-type">Date (7d)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">createdAt</span><span class="attr-type">Timestamp</span></div>
+        </div>
+      </div>
+
+      <!-- OTP -->
+      <div class="entity mod-auth">
+        <div class="entity-header">
+          <span class="entity-name">Otp</span>
+          <span class="entity-badge">AUTH</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">userId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">code</span><span class="attr-type">String 6-digit</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">expiresAt</span><span class="attr-type">Date (5m)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isUsed</span><span class="attr-type">Boolean</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">createdAt</span><span class="attr-type">Timestamp</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODULE: PROFILE -->
+  <div class="section sec-user">
+    <div class="group-label">02 · Faculty / Profile Entities</div>
+    <div class="entities-row">
+
+      <!-- Faculty -->
+      <div class="entity mod-user">
+        <div class="entity-header">
+          <span class="entity-name">Faculty</span>
+          <span class="entity-badge">CORE</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">name</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">code</span><span class="attr-type">String UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">description</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Student profile -->
+      <div class="entity mod-user">
+        <div class="entity-header">
+          <span class="entity-name">Student</span>
+          <span class="entity-badge">PROFILE</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">userId</span><span class="attr-type">→ User UQ</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">facultyId</span><span class="attr-type">→ Faculty</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">studentCode</span><span class="attr-type">String* UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">dateOfBirth</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">address</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">gpa</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">enrollmentYear</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Teacher profile -->
+      <div class="entity mod-user">
+        <div class="entity-header">
+          <span class="entity-name">Teacher</span>
+          <span class="entity-badge">PROFILE</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">userId</span><span class="attr-type">→ User UQ</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">facultyId</span><span class="attr-type">→ Faculty</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">teacherCode</span><span class="attr-type">String* UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">department</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">degree</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">specialization</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODULE: ACADEMIC -->
+  <div class="section sec-academic">
+    <div class="group-label">03 · Academic Core (Subject / Class / Enrollment / Gradebook)</div>
+    <div class="entities-row">
+
+      <!-- Subject -->
+      <div class="entity mod-academic">
+        <div class="entity-header">
+          <span class="entity-name">Subject</span>
+          <span class="entity-badge">ACADEMIC</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">facultyId</span><span class="attr-type">→ Faculty</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">name</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">code</span><span class="attr-type">String UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">credits</span><span class="attr-type">Number (3)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">description</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Class -->
+      <div class="entity mod-academic">
+        <div class="entity-header">
+          <span class="entity-name">Class</span>
+          <span class="entity-badge">ACADEMIC</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">subjectId</span><span class="attr-type">→ Subject</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">teacherId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">name</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">code</span><span class="attr-type">String UQ</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">semester</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">year</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">maxStudents</span><span class="attr-type">Number (50)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">totalLessons</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">scheduledLessons</span><span class="attr-type">Number (0)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Enrollment -->
+      <div class="entity mod-academic">
+        <div class="entity-header">
+          <span class="entity-name">Enrollment</span>
+          <span class="entity-badge">ACADEMIC</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">classId+studentId</span><span class="attr-type">UQ compound</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">enrolledAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">completedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">cancelledAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">cancelReason</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Gradebook -->
+      <div class="entity mod-academic">
+        <div class="entity-header">
+          <span class="entity-name">Gradebook</span>
+          <span class="entity-badge">ACADEMIC</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">expulsionRecordId</span><span class="attr-type">→ Expulsion</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">classId+studentId</span><span class="attr-type">UQ compound</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">qt</span><span class="attr-type">Number ×0.3</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">gk</span><span class="attr-type">Number ×0.2</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">ck</span><span class="attr-type">Number ×0.5</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#f59e0b">⚡</span><span class="attr-name">total</span><span class="attr-type">auto-calc</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">averageScore</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">dismissedMarker</span><span class="attr-type">Object</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODULE: ASSIGNMENT -->
+  <div class="section sec-assignment">
+    <div class="group-label">04 · Assignment Module</div>
+    <div class="entities-row">
+
+      <!-- Assignment -->
+      <div class="entity mod-assignment">
+        <div class="entity-header">
+          <span class="entity-name">Assignment</span>
+          <span class="entity-badge">ASSIGN</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">title</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">description</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">deadline</span><span class="attr-type">Date*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">maxScore</span><span class="attr-type">Number (10)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">type</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">mode</span><span class="attr-type">Enum file|quiz</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">durationMinutes</span><span class="attr-type">Number (60)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">attachments</span><span class="attr-type">Array</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">lockedStudents</span><span class="attr-type">Array</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Question -->
+      <div class="entity mod-assignment">
+        <div class="entity-header">
+          <span class="entity-name">Question</span>
+          <span class="entity-badge">ASSIGN</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">assignmentId</span><span class="attr-type">→ Assignment</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">content</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">options</span><span class="attr-type">Array [{text,isCorrect}]</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">type</span><span class="attr-type">Enum single|multi</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">points</span><span class="attr-type">Number (1)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">order</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Submission -->
+      <div class="entity mod-assignment">
+        <div class="entity-header">
+          <span class="entity-name">Submission</span>
+          <span class="entity-badge">ASSIGN</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">assignmentId</span><span class="attr-type">→ Assignment</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">gradedBy</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">content</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">files</span><span class="attr-type">Array</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">submittedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">score</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">feedback</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">gradedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- SubmissionAnswer -->
+      <div class="entity mod-assignment">
+        <div class="entity-header">
+          <span class="entity-name">SubmissionAnswer</span>
+          <span class="entity-badge">ASSIGN</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">submissionId</span><span class="attr-type">→ Submission</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">questionId</span><span class="attr-type">→ Question</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">selectedOptions</span><span class="attr-type">Array</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isCorrect</span><span class="attr-type">Boolean</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODULE: ATTENDANCE -->
+  <div class="section sec-attendance">
+    <div class="group-label">05 · Attendance Module</div>
+    <div class="entities-row">
+
+      <!-- Schedule -->
+      <div class="entity mod-attendance">
+        <div class="entity-header">
+          <span class="entity-name">Schedule</span>
+          <span class="entity-badge">ATTEND</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">date</span><span class="attr-type">Date*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">startTime</span><span class="attr-type">String HH:MM</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">endTime</span><span class="attr-type">String HH:MM</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">room</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- AttendanceSession -->
+      <div class="entity mod-attendance">
+        <div class="entity-header">
+          <span class="entity-name">AttendanceSession</span>
+          <span class="entity-badge">ATTEND</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">scheduleId</span><span class="attr-type">→ Schedule</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">date</span><span class="attr-type">Date*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">startTime</span><span class="attr-type">String HH:MM</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">endTime</span><span class="attr-type">String HH:MM</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#f59e0b">⚡</span><span class="attr-name">code</span><span class="attr-type">6-digit QR</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">codeExpiredAt</span><span class="attr-type">Date +5m</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- AttendanceRecord -->
+      <div class="entity mod-attendance">
+        <div class="entity-header">
+          <span class="entity-name">AttendanceRecord</span>
+          <span class="entity-badge">ATTEND</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">sessionId</span><span class="attr-type">→ AttendSess</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#10b981">◆</span><span class="attr-name">sessionId+studentId</span><span class="attr-type">UQ compound</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">checkedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">checkInMethod</span><span class="attr-type">Enum qr|manual</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- AttendanceWarning -->
+      <div class="entity mod-attendance">
+        <div class="entity-header">
+          <span class="entity-name">AttendanceWarning</span>
+          <span class="entity-badge">ATTEND</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">warningLevel</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#f59e0b">⚡</span><span class="attr-name">absenceRate</span><span class="attr-type">Number %</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">totalSessions</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">absentSessions</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">notifiedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODULE: DISCIPLINE -->
+  <div class="section sec-discipline">
+    <div class="group-label">06 · Discipline Module</div>
+    <div class="entities-row">
+
+      <!-- AcademicWarning -->
+      <div class="entity mod-discipline">
+        <div class="entity-header">
+          <span class="entity-name">AcademicWarning</span>
+          <span class="entity-badge">DISCIP</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">createdBy</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">warningType</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">warningLevel</span><span class="attr-type">1|2|3</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">gpa</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">threshold</span><span class="attr-type">Number</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">semester</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">notifiedAt</span><span class="attr-type">Date</span></div>
+        </div>
+      </div>
+
+      <!-- ExpulsionRecord -->
+      <div class="entity mod-discipline">
+        <div class="entity-header">
+          <span class="entity-name">ExpulsionRecord</span>
+          <span class="entity-badge">DISCIP</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">createdBy</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">approvedBy</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">appealReviewedBy</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">reason</span><span class="attr-type">String (20-2000)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">reasonType</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">effectiveDate</span><span class="attr-type">Date*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">attachments</span><span class="attr-type">Array</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">appealStatus</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">appealReason</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">appealEvidence</span><span class="attr-type">Array</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">appealSubmittedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">appealReviewedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">appealReviewNote</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">emailSentAt</span><span class="attr-type">Date</span></div>
+        </div>
+      </div>
+
+      <!-- AcademicLeave -->
+      <div class="entity mod-discipline">
+        <div class="entity-header">
+          <span class="entity-name">AcademicLeave</span>
+          <span class="entity-badge">DISCIP</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">studentId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">approvedBy</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">type</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">reason</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">startDate</span><span class="attr-type">Date*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">endDate</span><span class="attr-type">Date*</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#f59e0b">⚡</span><span class="attr-name">duration</span><span class="attr-type">auto-calc days</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">status</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">approvedAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">rejectionReason</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">documents</span><span class="attr-type">Array</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODULE: CHAT + NOTIFY -->
+  <div class="section sec-chat">
+    <div class="group-label">07 · Communication Module (Chat + Notification)</div>
+    <div class="entities-row">
+
+      <!-- Conversation -->
+      <div class="entity mod-chat">
+        <div class="entity-header">
+          <span class="entity-name">Conversation</span>
+          <span class="entity-badge">CHAT</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">participants</span><span class="attr-type">Array[{userId,unreadCount,lastReadAt}]</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">type</span><span class="attr-type">Enum direct|group|class</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class (opt)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">title</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">lastMessage</span><span class="attr-type">Object embedded</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isActive</span><span class="attr-type">Boolean</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Message -->
+      <div class="entity mod-chat">
+        <div class="entity-header">
+          <span class="entity-name">Message</span>
+          <span class="entity-badge">CHAT</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">conversationId</span><span class="attr-type">→ Conversation</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">senderId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">content</span><span class="attr-type">String (1-1000)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">timestamp</span><span class="attr-type">Date*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Notification -->
+      <div class="entity mod-notify">
+        <div class="entity-header">
+          <span class="entity-name">Notification</span>
+          <span class="entity-badge">NOTIFY</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">recipientId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">senderId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">title</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">content</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">type</span><span class="attr-type">Enum</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isRead</span><span class="attr-type">Boolean (false)</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">priority</span><span class="attr-type">Enum low|med|high</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">actionUrl</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">expiresAt</span><span class="attr-type">Date</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">relatedId</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">relatedType</span><span class="attr-type">String</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+      <!-- Announcement -->
+      <div class="entity mod-notify">
+        <div class="entity-header">
+          <span class="entity-name">Announcement</span>
+          <span class="entity-badge">NOTIFY</span>
+        </div>
+        <div class="entity-body">
+          <div class="attr-row"><span class="attr-icon" style="color:#fbbf24">🔑</span><span class="attr-name pk">_id</span><span class="attr-type">ObjectId</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">classId</span><span class="attr-type">→ Class</span></div>
+          <div class="attr-row"><span class="attr-icon" style="color:#60a5fa">→</span><span class="attr-name fk">teacherId</span><span class="attr-type">→ User</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">title</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">content</span><span class="attr-type">String*</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isPinned</span><span class="attr-type">Boolean</span></div>
+          <div class="attr-row"><span class="attr-icon"></span><span class="attr-name">isDeleted</span><span class="attr-type">Boolean</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FORMULAS -->
+  <div class="formula-box">
+    <div class="formula-title">⚡ AUTO-CALCULATED FIELDS</div>
+    <div class="formula">
+      Gradebook.total = <span>qt × 0.3</span> + <span>gk × 0.2</span> + <span>ck × 0.5</span> &nbsp;|&nbsp; (pre-save hook, rounded to 1 decimal)<br>
+      AttendanceWarning.absenceRate = <span>absentSessions / totalSessions × 100</span> &nbsp;|&nbsp; warning &gt;20% · critical &gt;30%<br>
+      AcademicLeave.duration = <span>days_between(startDate, endDate)</span><br>
+      Conversation.unreadCount = <span>count(messages where timestamp &gt; lastReadAt)</span><br>
+      AcademicWarning: L1 &lt;4.0 GPA · L2 &lt;3.0 · L3 &lt;2.0
+    </div>
+  </div>
+
+  <!-- RELATIONSHIP TABLE -->
+  <div class="rel-section">
+    <div class="rel-header">RELATIONSHIP MAP — 33 Relationships</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>From Entity</th>
+          <th>To Entity</th>
+          <th>Cardinality</th>
+          <th>Cascade</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>01</td><td class="from-e">User</td><td class="to-e">Student</td><td><span class="cardinality c-11">1:1</span></td><td class="cascade-d">DELETE</td><td>Identifying · userId unique</td></tr>
+        <tr><td>02</td><td class="from-e">User</td><td class="to-e">Teacher</td><td><span class="cardinality c-11">1:1</span></td><td class="cascade-d">DELETE</td><td>Identifying · userId unique</td></tr>
+        <tr><td>03</td><td class="from-e">Faculty</td><td class="to-e">Subject</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-r">RESTRICT</td><td>Non-identifying</td></tr>
+        <tr><td>04</td><td class="from-e">Faculty</td><td class="to-e">Student</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-r">RESTRICT</td><td>Non-identifying</td></tr>
+        <tr><td>05</td><td class="from-e">Faculty</td><td class="to-e">Teacher</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-r">RESTRICT</td><td>Non-identifying</td></tr>
+        <tr><td>06</td><td class="from-e">Subject</td><td class="to-e">Class</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-r">RESTRICT</td><td>Non-identifying</td></tr>
+        <tr><td>07</td><td class="from-e">User (Teacher)</td><td class="to-e">Class</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-r">RESTRICT</td><td>teacherId → User._id</td></tr>
+        <tr><td>08</td><td class="from-e">Class</td><td class="to-e">Enrollment</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>09</td><td class="from-e">User (Student)</td><td class="to-e">Enrollment</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Non-identifying</td></tr>
+        <tr><td>10</td><td class="from-e">Class</td><td class="to-e">Assignment</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>11</td><td class="from-e">Assignment</td><td class="to-e">Question</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>12</td><td class="from-e">Assignment</td><td class="to-e">Submission</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>13</td><td class="from-e">User (Student)</td><td class="to-e">Submission</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Non-identifying</td></tr>
+        <tr><td>14</td><td class="from-e">Submission</td><td class="to-e">SubmissionAnswer</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>15</td><td class="from-e">Question</td><td class="to-e">SubmissionAnswer</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-n">NONE</td><td>Non-identifying</td></tr>
+        <tr><td>16</td><td class="from-e">Class</td><td class="to-e">Gradebook</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>17</td><td class="from-e">User (Student)</td><td class="to-e">Gradebook</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Non-identifying</td></tr>
+        <tr><td>18</td><td class="from-e">Class</td><td class="to-e">Schedule</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>19</td><td class="from-e">Schedule</td><td class="to-e">AttendanceSession</td><td><span class="cardinality c-11">1:1</span></td><td class="cascade-d">DELETE</td><td>Identifying · auto-create</td></tr>
+        <tr><td>20</td><td class="from-e">Class</td><td class="to-e">AttendanceSession</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>21</td><td class="from-e">AttendanceSession</td><td class="to-e">AttendanceRecord</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying · 1 student/session</td></tr>
+        <tr><td>22</td><td class="from-e">User (Student)</td><td class="to-e">AttendanceRecord</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Non-identifying</td></tr>
+        <tr><td>23</td><td class="from-e">User (Student)</td><td class="to-e">AttendanceWarning</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Auto-generate &gt;20%</td></tr>
+        <tr><td>24</td><td class="from-e">Class</td><td class="to-e">AttendanceWarning</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-n">NONE</td><td>Non-identifying</td></tr>
+        <tr><td>25</td><td class="from-e">User (Student)</td><td class="to-e">AcademicWarning</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Non-identifying</td></tr>
+        <tr><td>26</td><td class="from-e">User (Student)</td><td class="to-e">ExpulsionRecord</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Non-identifying</td></tr>
+        <tr><td>27</td><td class="from-e">User (Student)</td><td class="to-e">AcademicLeave</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Non-identifying</td></tr>
+        <tr><td>28</td><td class="from-e">User</td><td class="to-e">Conversation</td><td><span class="cardinality c-mn">M:N</span></td><td class="cascade-n">NONE</td><td>Embedded array participants[]</td></tr>
+        <tr><td>29</td><td class="from-e">Conversation</td><td class="to-e">Message</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>30</td><td class="from-e">User</td><td class="to-e">Message</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-n">NONE</td><td>Keep history on delete</td></tr>
+        <tr><td>31</td><td class="from-e">User</td><td class="to-e">Notification</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>recipientId + senderId</td></tr>
+        <tr><td>32</td><td class="from-e">Class</td><td class="to-e">Announcement</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-d">DELETE</td><td>Identifying</td></tr>
+        <tr><td>33</td><td class="from-e">User (Teacher)</td><td class="to-e">Announcement</td><td><span class="cardinality c-1n">1:N</span></td><td class="cascade-n">NONE</td><td>Non-identifying</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>

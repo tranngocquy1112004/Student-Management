@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Use Case Diagram - Hệ thống Quản lý Lớp học</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f5f0;
+    --surface: #ffffff;
+    --border: #e8e2d9;
+    --text: #1a1612;
+    --text-muted: #8b8075;
+    --text-light: #b8b0a5;
+
+    --admin: #c0392b;
+    --admin-soft: #fdf3f2;
+    --admin-border: #f1c0bb;
+
+    --teacher: #2980b9;
+    --teacher-soft: #f0f7fd;
+    --teacher-border: #b8d9ef;
+
+    --student: #27ae60;
+    --student-soft: #f0faf4;
+    --student-border: #b8e5cb;
+
+    --uc-auth: #6c5ce7;
+    --uc-user: #00b894;
+    --uc-class: #2980b9;
+    --uc-assign: #a029b9;
+    --uc-attend: #00897b;
+    --uc-grade: #e67e22;
+    --uc-discip: #c0392b;
+    --uc-chat: #0984e3;
+    --uc-notify: #d35400;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    font-family: 'Syne', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .top-bar {
+    background: #1a1612;
+    color: #f8f5f0;
+    padding: 20px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid #c0392b;
+  }
+
+  .top-bar h1 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .top-bar p { font-size: 0.75rem; color: #b8b0a5; margin-top: 2px; }
+
+  .actor-legend {
+    display: flex;
+    gap: 24px;
+  }
+  .actor-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .actor-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 130px 1fr 130px;
+    gap: 0;
+    min-height: calc(100vh - 70px);
+    padding: 40px 24px;
+  }
+
+  /* ACTOR COLUMNS */
+  .actor-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding-top: 20px;
+  }
+
+  .actor-figure {
+    position: sticky;
+    top: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .actor-head {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    border: 3px solid;
+  }
+  .actor-body-line {
+    width: 3px;
+    height: 60px;
+  }
+  .actor-arms {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .actor-arm {
+    width: 35px; height: 3px;
+  }
+  .actor-legs {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 4px;
+  }
+  .actor-leg {
+    width: 3px;
+    height: 40px;
+    transform-origin: top;
+  }
+  .actor-leg.left { transform: rotate(-15deg); }
+  .actor-leg.right { transform: rotate(15deg); }
+
+  .actor-name {
+    font-weight: 800;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 8px;
+    text-align: center;
+  }
+  .actor-role {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 110px;
+    line-height: 1.4;
+  }
+
+  .actor-admin .actor-head { background: var(--admin-soft); border-color: var(--admin); }
+  .actor-admin .actor-body-line, .actor-admin .actor-arm, .actor-admin .actor-leg { background: var(--admin); }
+  .actor-admin .actor-name { color: var(--admin); }
+
+  .actor-teacher .actor-head { background: var(--teacher-soft); border-color: var(--teacher); }
+  .actor-teacher .actor-body-line, .actor-teacher .actor-arm, .actor-teacher .actor-leg { background: var(--teacher); }
+  .actor-teacher .actor-name { color: var(--teacher); }
+
+  .actor-student .actor-head { background: var(--student-soft); border-color: var(--student); }
+  .actor-student .actor-body-line, .actor-student .actor-arm, .actor-student .actor-leg { background: var(--student); }
+  .actor-student .actor-name { color: var(--student); }
+
+  /* SYSTEM BOUNDARY */
+  .system-boundary {
+    border: 2px dashed #ccc5bb;
+    border-radius: 20px;
+    padding: 24px;
+    position: relative;
+    background: rgba(255,255,255,0.6);
+  }
+
+  .boundary-label {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    padding: 0 16px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .modules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+  }
+
+  .module {
+    background: var(--surface);
+    border-radius: 14px;
+    border: 2px solid;
+    overflow: hidden;
+  }
+
+  .module-header {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid;
+  }
+
+  .module-icon { font-size: 1rem; }
+
+  .module-title {
+    font-weight: 800;
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .module-count {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 8px;
+  }
+
+  .module-body { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+
+  .uc-item {
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: default;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .uc-item:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  .uc-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 600;
+    opacity: 0.7;
+    min-width: 36px;
+  }
+
+  .uc-name { flex: 1; line-height: 1.3; }
+
+  .actor-tags {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .tag {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .tag-a { background: var(--admin); }
+  .tag-t { background: var(--teacher); }
+  .tag-s { background: var(--student); }
+
+  /* Module color themes */
+  .mod-auth { border-color: #d4b0fc; }
+  .mod-auth .module-header { background: #f5eeff; border-bottom-color: #e8d4fc; }
+  .mod-auth .module-title { color: var(--uc-auth); }
+  .mod-auth .module-count { background: #ede0ff; color: var(--uc-auth); }
+  .mod-auth .uc-item { background: #faf5ff; border-color: #e9d8fd; color: #4a2d7a; }
+  .mod-auth .uc-item:hover { background: #f3e8ff; }
+
+  .mod-user { border-color: #a8e6cf; }
+  .mod-user .module-header { background: #f0faf5; border-bottom-color: #c3e6d5; }
+  .mod-user .module-title { color: var(--uc-user); }
+  .mod-user .module-count { background: #d4f5e5; color: var(--uc-user); }
+  .mod-user .uc-item { background: #f5fbf8; border-color: #c3e6d5; color: #155a3a; }
+  .mod-user .uc-item:hover { background: #e8f8f0; }
+
+  .mod-class { border-color: #b8d9ef; }
+  .mod-class .module-header { background: #f0f7fd; border-bottom-color: #c8e3f5; }
+  .mod-class .module-title { color: var(--uc-class); }
+  .mod-class .module-count { background: #d6ecf8; color: var(--uc-class); }
+  .mod-class .uc-item { background: #f5f9fd; border-color: #c8e3f5; color: #1a4a6e; }
+  .mod-class .uc-item:hover { background: #e5f2fa; }
+
+  .mod-assign { border-color: #e0b0ee; }
+  .mod-assign .module-header { background: #faf0fe; border-bottom-color: #e9c8f5; }
+  .mod-assign .module-title { color: var(--uc-assign); }
+  .mod-assign .module-count { background: #f0d8fa; color: var(--uc-assign); }
+  .mod-assign .uc-item { background: #fdf5ff; border-color: #ead4f8; color: #5a1a6e; }
+  .mod-assign .uc-item:hover { background: #f5e8ff; }
+
+  .mod-attend { border-color: #a8dbd7; }
+  .mod-attend .module-header { background: #f0faf9; border-bottom-color: #c0e8e5; }
+  .mod-attend .module-title { color: var(--uc-attend); }
+  .mod-attend .module-count { background: #d0f0ee; color: var(--uc-attend); }
+  .mod-attend .uc-item { background: #f5faf9; border-color: #bce5e3; color: #0d4a46; }
+  .mod-attend .uc-item:hover { background: #e5f5f4; }
+
+  .mod-grade { border-color: #f5d3a8; }
+  .mod-grade .module-header { background: #fef9f0; border-bottom-color: #f5e0c0; }
+  .mod-grade .module-title { color: var(--uc-grade); }
+  .mod-grade .module-count { background: #faecd0; color: var(--uc-grade); }
+  .mod-grade .uc-item { background: #fdf9f3; border-color: #f0dec0; color: #6e3a08; }
+  .mod-grade .uc-item:hover { background: #faf0e0; }
+
+  .mod-discip { border-color: #f1c0bb; }
+  .mod-discip .module-header { background: #fdf3f2; border-bottom-color: #f5ccc8; }
+  .mod-discip .module-title { color: var(--uc-discip); }
+  .mod-discip .module-count { background: #fadadd; color: var(--uc-discip); }
+  .mod-discip .uc-item { background: #fdf5f5; border-color: #f5ccc8; color: #6e1010; }
+  .mod-discip .uc-item:hover { background: #fae8e8; }
+
+  .mod-chat { border-color: #b0d4f5; }
+  .mod-chat .module-header { background: #f0f5fd; border-bottom-color: #c0dcf8; }
+  .mod-chat .module-title { color: var(--uc-chat); }
+  .mod-chat .module-count { background: #d0e8f8; color: var(--uc-chat); }
+  .mod-chat .uc-item { background: #f3f8fd; border-color: #c0dcf8; color: #0a3a6e; }
+  .mod-chat .uc-item:hover { background: #e0f0fb; }
+
+  .mod-notify { border-color: #f5c8a0; }
+  .mod-notify .module-header { background: #fef8f3; border-bottom-color: #f5d8bc; }
+  .mod-notify .module-title { color: var(--uc-notify); }
+  .mod-notify .module-count { background: #fadcc0; color: var(--uc-notify); }
+  .mod-notify .uc-item { background: #fdf8f3; border-color: #f0d0b0; color: #6e2e08; }
+  .mod-notify .uc-item:hover { background: #faeee0; }
+
+  /* Relationship annotations */
+  .rel-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.55rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 3px;
+  }
+  .rel-include { background: #dbeafe; color: #1d4ed8; }
+  .rel-extend { background: #dcfce7; color: #166534; }
+
+  /* Detail panel below */
+  .detail-section {
+    padding: 40px 48px;
+    background: #1a1612;
+    color: #e8e2d9;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 24px;
+  }
+
+  .detail-title {
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #8b8075;
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .uc-detail {
+    background: #2a2420;
+    border: 1px solid #3a3028;
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .uc-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #3a3028;
+  }
+
+  .uc-detail-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #8b8075;
+  }
+
+  .uc-detail-name {
+    font-weight: 700;
+    font-size: 0.8rem;
+    flex: 1;
+  }
+
+  .uc-flow { font-size: 0.68rem; line-height: 1.8; color: #b8b0a5; }
+  .uc-flow .step { 
+    display: flex; gap: 8px; align-items: flex-start;
+    margin-bottom: 2px;
+  }
+  .uc-flow .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    color: #6b6058;
+    min-width: 18px;
+    margin-top: 1px;
+  }
+  .uc-flow .alt {
+    color: #e67e22;
+    font-size: 0.62rem;
+    padding-left: 26px;
+    margin-top: 2px;
+  }
+
+  .uc-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #3a3028;
+  }
+
+  .meta-tag {
+    font-size: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .meta-pre { background: #1a3a28; color: #6ee7b7; }
+  .meta-post { background: #1a2a3a; color: #7dd3fc; }
+  .meta-actor { background: #3a1a28; color: #fda4af; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>Use Case Diagram — Hệ thống Quản lý Lớp học</h1>
+    <p>3 Actors · 36 Use Cases · 9 Modules · MERN Stack</p>
+  </div>
+  <div class="actor-legend">
+    <div class="actor-pill"><div class="actor-dot" style="background:var(--admin)"></div> Admin</div>
+    <div class="actor-pill"><div class="actor-dot" style="background:var(--teacher)"></div> Teacher</div>
+    <div class="actor-pill"><div class="actor-dot" style="background:var(--student)"></div> Student</div>
+    <div class="actor-pill"><div class="actor-dot" style="background:#888"></div> All</div>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- LEFT: ADMIN + TEACHER -->
+  <div class="actor-col">
+    <div class="actor-figure actor-admin">
+      <div class="actor-head">👤</div>
+      <div class="actor-body-line"></div>
+      <div class="actor-arms"><div class="actor-arm"></div></div>
+      <div class="actor-legs">
+        <div class="actor-leg left"></div>
+        <div class="actor-leg right"></div>
+      </div>
+      <div class="actor-name">Admin</div>
+      <div class="actor-role">Quản trị toàn bộ hệ thống</div>
+    </div>
+
+    <div style="height:60px"></div>
+
+    <div class="actor-figure actor-teacher">
+      <div class="actor-head">👨‍🏫</div>
+      <div class="actor-body-line"></div>
+      <div class="actor-arms"><div class="actor-arm"></div></div>
+      <div class="actor-legs">
+        <div class="actor-leg left"></div>
+        <div class="actor-leg right"></div>
+      </div>
+      <div class="actor-name">Teacher</div>
+      <div class="actor-role">Giảng dạy & quản lý lớp</div>
+    </div>
+  </div>
+
+  <!-- CENTER: SYSTEM BOUNDARY -->
+  <div class="system-boundary">
+    <div class="boundary-label">«System» Classroom Management System</div>
+
+    <div class="modules-grid">
+
+      <!-- 01 AUTH -->
+      <div class="module mod-auth">
+        <div class="module-header">
+          <span class="module-icon">🔐</span>
+          <span class="module-title">Authentication</span>
+          <span class="module-count">3 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-01</span>
+            <span class="uc-name">Đăng nhập</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-02</span>
+            <span class="uc-name">Quên mật khẩu (OTP)</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-03</span>
+            <span class="uc-name">Đổi mật khẩu</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02 USER MGMT -->
+      <div class="module mod-user">
+        <div class="module-header">
+          <span class="module-icon">👥</span>
+          <span class="module-title">User Management</span>
+          <span class="module-count">3 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-04</span>
+            <span class="uc-name">Tạo tài khoản</span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-05</span>
+            <span class="uc-name">Khóa/Mở khóa tài khoản</span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-06</span>
+            <span class="uc-name">Import người dùng (CSV)</span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 CLASS MGMT -->
+      <div class="module mod-class">
+        <div class="module-header">
+          <span class="module-icon">🏫</span>
+          <span class="module-title">Class Management</span>
+          <span class="module-count">4 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-07</span>
+            <span class="uc-name">Tạo lớp học</span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-08</span>
+            <span class="uc-name">Ghi danh sinh viên</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-09</span>
+            <span class="uc-name">Import SV từ Excel</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-10</span>
+            <span class="uc-name">Xem danh sách lớp</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 04 ASSIGNMENT -->
+      <div class="module mod-assign">
+        <div class="module-header">
+          <span class="module-icon">📝</span>
+          <span class="module-title">Assignment</span>
+          <span class="module-count">5 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-11</span>
+            <span class="uc-name">Tạo bài tập <span class="rel-note rel-include">«include» UC-12</span></span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-12</span>
+            <span class="uc-name">Xuất bản bài tập</span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-13</span>
+            <span class="uc-name">Nộp bài (File)</span>
+            <div class="actor-tags"><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-14</span>
+            <span class="uc-name">Làm bài trắc nghiệm <span class="rel-note rel-extend">«extend» UC-13</span></span>
+            <div class="actor-tags"><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-15</span>
+            <span class="uc-name">Chấm điểm bài tập</span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 ATTENDANCE -->
+      <div class="module mod-attend">
+        <div class="module-header">
+          <span class="module-icon">📋</span>
+          <span class="module-title">Attendance</span>
+          <span class="module-count">5 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-16</span>
+            <span class="uc-name">Tạo lịch học <span class="rel-note rel-include">«include» UC-17</span></span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-17</span>
+            <span class="uc-name">Tạo QR Code điểm danh</span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-18</span>
+            <span class="uc-name">Điểm danh QR Code</span>
+            <div class="actor-tags"><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-19</span>
+            <span class="uc-name">Điểm danh thủ công</span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-20</span>
+            <span class="uc-name">Xem báo cáo điểm danh</span>
+            <div class="actor-tags"><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 06 GRADEBOOK -->
+      <div class="module mod-grade">
+        <div class="module-header">
+          <span class="module-icon">📊</span>
+          <span class="module-title">Gradebook</span>
+          <span class="module-count">3 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-21</span>
+            <span class="uc-name">Nhập điểm (QT/GK/CK)</span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-22</span>
+            <span class="uc-name">Xem bảng điểm</span>
+            <div class="actor-tags"><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-23</span>
+            <span class="uc-name">Xuất bảng điểm Excel</span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 07 DISCIPLINE -->
+      <div class="module mod-discip">
+        <div class="module-header">
+          <span class="module-icon">⚖️</span>
+          <span class="module-title">Discipline</span>
+          <span class="module-count">5 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-24</span>
+            <span class="uc-name">Tạo quyết định đuổi học</span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-25</span>
+            <span class="uc-name">Kháng cáo đuổi học <span class="rel-note rel-extend">«extend» UC-24</span></span>
+            <div class="actor-tags"><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-26</span>
+            <span class="uc-name">Xét kháng cáo <span class="rel-note rel-include">«include» UC-25</span></span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-27</span>
+            <span class="uc-name">Xin bảo lưu học</span>
+            <div class="actor-tags"><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-28</span>
+            <span class="uc-name">Duyệt bảo lưu <span class="rel-note rel-include">«include» UC-27</span></span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 08 CHAT -->
+      <div class="module mod-chat">
+        <div class="module-header">
+          <span class="module-icon">💬</span>
+          <span class="module-title">Chat Real-time</span>
+          <span class="module-count">4 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-29</span>
+            <span class="uc-name">Bắt đầu cuộc trò chuyện</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-30</span>
+            <span class="uc-name">Gửi tin nhắn (Socket.io) <span class="rel-note rel-include">«include» UC-29</span></span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-31</span>
+            <span class="uc-name">Đánh dấu đã đọc</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-32</span>
+            <span class="uc-name">Xem lịch sử chat</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 09 NOTIFICATION -->
+      <div class="module mod-notify">
+        <div class="module-header">
+          <span class="module-icon">🔔</span>
+          <span class="module-title">Notification</span>
+          <span class="module-count">4 UC</span>
+        </div>
+        <div class="module-body">
+          <div class="uc-item">
+            <span class="uc-id">UC-33</span>
+            <span class="uc-name">Xem thông báo cá nhân</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-34</span>
+            <span class="uc-name">Tạo thông báo lớp</span>
+            <div class="actor-tags"><div class="tag tag-t"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-35</span>
+            <span class="uc-name">Gửi thông báo hệ thống</span>
+            <div class="actor-tags"><div class="tag tag-a"></div></div>
+          </div>
+          <div class="uc-item">
+            <span class="uc-id">UC-36</span>
+            <span class="uc-name">Đánh dấu thông báo đã đọc</span>
+            <div class="actor-tags"><div class="tag tag-a"></div><div class="tag tag-t"></div><div class="tag tag-s"></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT: STUDENT -->
+  <div class="actor-col">
+    <div class="actor-figure actor-student">
+      <div class="actor-head">🎓</div>
+      <div class="actor-body-line"></div>
+      <div class="actor-arms"><div class="actor-arm"></div></div>
+      <div class="actor-legs">
+        <div class="actor-leg left"></div>
+        <div class="actor-leg right"></div>
+      </div>
+      <div class="actor-name">Student</div>
+      <div class="actor-role">Học tập & tham gia hoạt động</div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL SECTION -->
+<div class="detail-section">
+  <div class="detail-title">USE CASE DETAIL — Main Flow & Alternative Flow</div>
+  <div class="detail-grid">
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-01</span>
+        <span class="uc-detail-name">Đăng nhập</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập email & password</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Hệ thống xác thực thông tin</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Tạo AccessToken (15m) + RefreshToken (7d)</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Lưu RefreshToken vào DB</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Trả về tokens + user info</span></div>
+        <div class="alt">⚠ 2a: Email/pass sai → lỗi 401</div>
+        <div class="alt">⚠ 2b: Tài khoản bị khóa → lỗi 403</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">All Actors</span>
+        <span class="meta-tag meta-pre">Pre: Có tài khoản</span>
+        <span class="meta-tag meta-post">Post: Nhận JWT</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-02</span>
+        <span class="uc-detail-name">Quên mật khẩu (OTP)</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập email đã đăng ký</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Tạo OTP 6 chữ số, hết hạn 5 phút</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Gửi OTP qua email</span></div>
+        <div class="step"><span class="step-num">4.</span><span>User nhập OTP → xác thực</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Nhập mật khẩu mới → cập nhật</span></div>
+        <div class="alt">⚠ 5a: OTP hết hạn → yêu cầu gửi lại</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">All Actors</span>
+        <span class="meta-tag meta-post">Post: Pass được reset</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-04</span>
+        <span class="uc-detail-name">Tạo tài khoản</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Admin nhập name, email, role</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Hệ thống tạo mật khẩu mặc định</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Tạo User record</span></div>
+        <div class="step"><span class="step-num">4a.</span><span>role=student → tạo Student + studentCode</span></div>
+        <div class="step"><span class="step-num">4b.</span><span>role=teacher → tạo Teacher + teacherCode</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Gửi email thông báo</span></div>
+        <div class="alt">⚠ 2a: Email trùng → lỗi 409</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Admin</span>
+        <span class="meta-tag meta-post">Post: Tài khoản tạo xong</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-08</span>
+        <span class="uc-detail-name">Ghi danh sinh viên</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Chọn lớp và sinh viên</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Kiểm tra số lượng &lt; maxStudents</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Tạo Enrollment record</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Tạo Gradebook record cho SV</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Gửi thông báo cho SV</span></div>
+        <div class="alt">⚠ 2a: Lớp đã đầy (≥50) → lỗi</div>
+        <div class="alt">⚠ 2b: SV đã ghi danh → lỗi</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Admin, Teacher</span>
+        <span class="meta-tag meta-post">Post: SV trong lớp</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-16</span>
+        <span class="uc-detail-name">Tạo lịch học</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập date, startTime, endTime, room</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Validate: date ≥ hôm nay</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Tạo Schedule record</span></div>
+        <div class="step"><span class="step-num">4.</span><span>«include» Auto-tạo AttendanceSession</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Cập nhật Class.scheduledLessons++</span></div>
+        <div class="alt">⚠ 2a: Lịch trùng → lỗi</div>
+        <div class="alt">⚠ 2b: scheduledLessons &gt; totalLessons → lỗi</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Teacher</span>
+        <span class="meta-tag meta-post">Post: Lịch + Session tạo</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-18</span>
+        <span class="uc-detail-name">Điểm danh QR Code</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>SV quét QR code</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Validate mã QR (hết hạn sau 5 phút)</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Kiểm tra trong khoảng startTime-endTime</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Tạo AttendanceRecord (status=present)</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Nếu sau startTime+15m: status=late</span></div>
+        <div class="step"><span class="step-num">6.</span><span>Tính tỷ lệ vắng. Nếu &gt;20%: tạo Warning</span></div>
+        <div class="alt">⚠ 2a: QR hết hạn → lỗi</div>
+        <div class="alt">⚠ 2b: Đã điểm danh → lỗi</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Student</span>
+        <span class="meta-tag meta-post">Post: Ghi nhận điểm danh</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-21</span>
+        <span class="uc-detail-name">Nhập điểm</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập điểm QT, GK, CK (0-10)</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Validate: 0 ≤ điểm ≤ 10</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Cập nhật Gradebook</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Auto-calc: total = QT×0.3+GK×0.2+CK×0.5</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Gửi thông báo cho SV</span></div>
+        <div class="step"><span class="step-num">6.</span><span>Nếu total &lt;4.0: tạo AcademicWarning</span></div>
+        <div class="alt">⚠ 2a: Điểm không hợp lệ → lỗi</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Teacher</span>
+        <span class="meta-tag meta-post">Post: Điểm cập nhật</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-24</span>
+        <span class="uc-detail-name">Tạo quyết định đuổi học</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập studentId, reason, reasonType, effectiveDate</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Validate: effectiveDate ≥ hôm nay</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Tạo ExpulsionRecord (status=pending)</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Admin upload tài liệu đính kèm</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Admin duyệt → status=active</span></div>
+        <div class="step"><span class="step-num">6.</span><span>User.status=dismissed, Gradebook đánh dấu</span></div>
+        <div class="step"><span class="step-num">7.</span><span>Gửi email thông báo</span></div>
+        <div class="alt">⚠ 2a: effectiveDate quá khứ → lỗi</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Admin</span>
+        <span class="meta-tag meta-post">Post: SV bị đuổi học</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-25</span>
+        <span class="uc-detail-name">Kháng cáo đuổi học</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập lý do kháng cáo</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Upload tài liệu bằng chứng</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Cập nhật ExpulsionRecord (appealStatus=pending)</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Gửi thông báo cho Admin</span></div>
+        <div class="alt">⚠ Pre: ExpulsionRecord status=active</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Student</span>
+        <span class="meta-tag meta-post">Post: Đơn kháng cáo gửi</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-27</span>
+        <span class="uc-detail-name">Xin bảo lưu học</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập type, reason, startDate, endDate</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Upload giấy tờ chứng minh</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Validate: endDate &gt; startDate</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Tạo AcademicLeave (status=pending)</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Auto-calc duration = days between</span></div>
+        <div class="step"><span class="step-num">6.</span><span>Gửi thông báo cho Admin</span></div>
+        <div class="alt">⚠ 3a: Ngày không hợp lệ → lỗi</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Student</span>
+        <span class="meta-tag meta-pre">Pre: status=active</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-30</span>
+        <span class="uc-detail-name">Gửi tin nhắn (Socket.io)</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Nhập nội dung ≤ 1000 ký tự</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Tạo Message record</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Cập nhật Conversation.lastMessage</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Cập nhật unreadCount cho bên kia</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Emit real-time qua Socket.io</span></div>
+        <div class="step"><span class="step-num">6.</span><span>Browser notification (nếu được phép)</span></div>
+        <div class="alt">⚠ 1a: Nội dung &gt;1000 ký tự → lỗi</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">All Actors</span>
+        <span class="meta-tag meta-pre">Pre: Là participant</span>
+        <span class="meta-tag meta-post">Post: Real-time delivery</span>
+      </div>
+    </div>
+
+    <div class="uc-detail">
+      <div class="uc-detail-header">
+        <span class="uc-detail-id">UC-14</span>
+        <span class="uc-detail-name">Làm bài trắc nghiệm</span>
+      </div>
+      <div class="uc-flow">
+        <div class="step"><span class="step-num">1.</span><span>Xem danh sách câu hỏi</span></div>
+        <div class="step"><span class="step-num">2.</span><span>Chọn đáp án từng câu</span></div>
+        <div class="step"><span class="step-num">3.</span><span>Nộp bài (trong durationMinutes)</span></div>
+        <div class="step"><span class="step-num">4.</span><span>Tạo Submission + SubmissionAnswer records</span></div>
+        <div class="step"><span class="step-num">5.</span><span>Auto-chấm điểm, cập nhật score</span></div>
+        <div class="step"><span class="step-num">6.</span><span>Cập nhật Gradebook.averageScore</span></div>
+        <div class="alt">⚠ Pre: mode=quiz, status=published</div>
+        <div class="alt">⚠ SV không bị lock khỏi bài</div>
+      </div>
+      <div class="uc-meta">
+        <span class="meta-tag meta-actor">Student</span>
+        <span class="meta-tag meta-post">Post: Auto-graded</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
