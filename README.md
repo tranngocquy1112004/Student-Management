@@ -1822,6 +1822,6 @@ MIT License - Đồ án tốt nghiệp
 
 ---
 
-**Phát triển bởi**: [Tên của bạn]  
-**Năm**: 2024-2025  
+**Phát triển bởi**: Trần Ngọc Quý 
+**Năm**: 2025-2026  
 **Công nghệ**: MERN Stack (MongoDB, Express, React, Node.js)
