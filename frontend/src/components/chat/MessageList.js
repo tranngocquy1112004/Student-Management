@@ -19,33 +19,38 @@ import { List } from 'react-window';
  */
 const MessageList = ({ conversationId }) => {
   const { messages, groupedMessages, hasMoreMessages, isOwnMessage, shouldShowSenderInfo, formatMessageTime } = useMessages(conversationId);
-  const { loadMoreMessages, loading } = useChat();
+  const { loadMoreMessages, loading, messagesLoading } = useChat();
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const listRef = useRef(null);
   const [prevMessageCount, setPrevMessageCount] = useState(0);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
+  // Check if messages are currently loading for this conversation
+  const isLoadingMessages = messagesLoading?.[conversationId] || false;
+
   // Memoize formatTime callback (Requirement 12.2, 12.3)
   const formatTime = useCallback((timestamp) => formatMessageTime(timestamp), [formatMessageTime]);
 
   const scrollToBottom = useCallback(() => {
-    if (listRef.current) {
+    if (listRef.current && messages) {
       // For virtual list, scroll to last item
       listRef.current.scrollToItem(messages.length - 1, 'end');
     } else {
       // For regular list
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages.length]);
+  }, [messages]);
 
   // Auto-scroll to bottom on new message
   useEffect(() => {
-    if (messages.length > prevMessageCount && isAtBottom) {
+    if (messages && messages.length > prevMessageCount && isAtBottom) {
       scrollToBottom();
     }
-    setPrevMessageCount(messages.length);
-  }, [messages.length, prevMessageCount, isAtBottom, scrollToBottom]);
+    if (messages) {
+      setPrevMessageCount(messages.length);
+    }
+  }, [messages, prevMessageCount, isAtBottom, scrollToBottom]);
 
   // Scroll to bottom initially
   useEffect(() => {
@@ -80,19 +85,22 @@ const MessageList = ({ conversationId }) => {
   }, [hasMoreMessages, loading, loadMoreMessages]);
 
   // Use virtualization for large message lists (> 100 messages)
-  const useVirtualization = useMemo(() => messages.length > 100, [messages.length]);
+  const useVirtualization = useMemo(() => messages && messages.length > 100, [messages]);
 
   // Memoize Row component for virtual list
-  const Row = useCallback(({ index, style }) => (
-    <div style={style}>
-      <MessageItem
-        message={messages[index]}
-        isOwn={isOwnMessage(messages[index])}
-        showSenderInfo={shouldShowSenderInfo(messages[index], index, messages)}
-        formatTime={formatTime}
-      />
-    </div>
-  ), [messages, isOwnMessage, shouldShowSenderInfo, formatTime]);
+  const Row = useCallback(({ index, style }) => {
+    if (!messages || !messages[index]) return null;
+    return (
+      <div style={style}>
+        <MessageItem
+          message={messages[index]}
+          isOwn={isOwnMessage(messages[index])}
+          showSenderInfo={shouldShowSenderInfo(messages[index], index, messages)}
+          formatTime={formatTime}
+        />
+      </div>
+    );
+  }, [messages, isOwnMessage, shouldShowSenderInfo, formatTime]);
 
   if (!conversationId) {
     return (
@@ -102,7 +110,21 @@ const MessageList = ({ conversationId }) => {
     );
   }
 
-  if (messages.length === 0 && !loading) {
+  // Show loading spinner if:
+  // 1. Explicitly loading (messagesLoading flag is true), OR
+  // 2. Messages haven't been initialized yet (undefined)
+  // This prevents empty state flash during initial load
+  if (isLoadingMessages || messages === undefined) {
+    return (
+      <div className="message-list-loading" role="status" aria-live="polite">
+        <div className="loading-spinner"></div>
+        <p>Đang tải tin nhắn...</p>
+      </div>
+    );
+  }
+
+  // Show empty state only after loading is complete AND messages array is empty
+  if (messages.length === 0) {
     return (
       <div className="message-list-empty" role="status">
         <p>Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!</p>

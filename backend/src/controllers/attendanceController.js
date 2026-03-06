@@ -312,6 +312,21 @@ export const getStatistics = async (req, res) => {
   }
 };
 
+export const getDetailedStatistics = async (req, res) => {
+  try {
+    const allowed = await canAccessClass(req.user, req.params.classId);
+    if (!allowed || (req.user.role !== 'admin' && req.user.role !== 'teacher')) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const statistics = await attendanceService.getDetailedAttendanceStatistics(req.params.classId);
+    res.json({ success: true, data: statistics });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 export const getAttendanceRate = async (req, res) => {
   try {
     const allowed = await canAccessClass(req.user, req.params.classId);

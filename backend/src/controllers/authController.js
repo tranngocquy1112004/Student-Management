@@ -18,15 +18,59 @@ export const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu sai' });
     }
     if (user.isLocked) return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
+    
     const { accessToken, refreshToken } = generateTokens(user._id);
     await RefreshToken.create({ token: refreshToken, userId: user._id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) });
+    
+    // Build user data with role-specific information
+    let userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar
+    };
+    
+    // Add role-specific data
+    if (user.role === 'student') {
+      const Student = (await import('../models/Student.js')).default;
+      const studentData = await Student.findOne({ userId: user._id })
+        .populate('facultyId', 'name code')
+        .lean();
+      
+      if (studentData) {
+        userData.studentInfo = {
+          _id: studentData._id,
+          studentCode: studentData.studentCode,
+          faculty: studentData.facultyId,
+          enrollmentYear: studentData.enrollmentYear,
+          status: studentData.status
+        };
+      }
+    } else if (user.role === 'teacher') {
+      const Teacher = (await import('../models/Teacher.js')).default;
+      const teacherData = await Teacher.findOne({ userId: user._id })
+        .populate('facultyId', 'name code')
+        .lean();
+      
+      if (teacherData) {
+        userData.teacherInfo = {
+          _id: teacherData._id,
+          teacherCode: teacherData.teacherCode,
+          faculty: teacherData.facultyId,
+          specialization: teacherData.specialization,
+          title: teacherData.title
+        };
+      }
+    }
+    
     res.json({
       success: true,
       data: {
         accessToken,
         refreshToken,
         expiresIn: 900,
-        user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+        user: userData,
       },
     });
   } catch (error) {
@@ -62,7 +106,49 @@ export const refreshToken = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
-    res.json({ success: true, data: user });
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Populate additional data based on role
+    let userData = user.toObject();
+    
+    if (user.role === 'student') {
+      // Import Student model dynamically
+      const Student = (await import('../models/Student.js')).default;
+      const studentData = await Student.findOne({ userId: user._id })
+        .populate('facultyId', 'name code')
+        .lean();
+      
+      if (studentData) {
+        userData.studentInfo = {
+          _id: studentData._id,
+          studentCode: studentData.studentCode,
+          faculty: studentData.facultyId,
+          enrollmentYear: studentData.enrollmentYear,
+          status: studentData.status
+        };
+      }
+    } else if (user.role === 'teacher') {
+      // Import Teacher model dynamically
+      const Teacher = (await import('../models/Teacher.js')).default;
+      const teacherData = await Teacher.findOne({ userId: user._id })
+        .populate('facultyId', 'name code')
+        .lean();
+      
+      if (teacherData) {
+        userData.teacherInfo = {
+          _id: teacherData._id,
+          teacherCode: teacherData.teacherCode,
+          faculty: teacherData.facultyId,
+          specialization: teacherData.specialization,
+          title: teacherData.title
+        };
+      }
+    }
+    
+    res.json({ success: true, data: userData });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

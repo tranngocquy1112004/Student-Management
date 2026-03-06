@@ -64,3 +64,57 @@ export const getTeacherClasses = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getTeacherStudents = async (req, res) => {
+  try {
+    // Find teacher
+    const teacher = await Teacher.findOne({ userId: req.user._id });
+    if (!teacher) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy thông tin giảng viên' 
+      });
+    }
+
+    // Find all classes taught by this teacher
+    const classes = await Class.find({ 
+      teacherId: teacher._id, 
+      isDeleted: false 
+    }).populate({
+      path: 'students',
+      populate: {
+        path: 'userId',
+        select: 'name email studentCode status'
+      }
+    });
+
+    // Extract unique students from all classes
+    const studentMap = new Map();
+    classes.forEach(cls => {
+      cls.students.forEach(student => {
+        if (student.userId && student.userId.status === 'active') {
+          studentMap.set(student.userId._id.toString(), {
+            _id: student.userId._id,
+            name: student.userId.name,
+            email: student.userId.email,
+            studentCode: student.userId.studentCode
+          });
+        }
+      });
+    });
+
+    const students = Array.from(studentMap.values());
+
+    res.json({ 
+      success: true, 
+      data: students 
+    });
+  } catch (error) {
+    console.error('Get teacher students error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi khi lấy danh sách sinh viên',
+      error: error.message 
+    });
+  }
+};

@@ -29,7 +29,7 @@ const Layout = ({ children, sidebar }) => {
         const { data } = await api.get('/notifications/unread-count');
         setUnreadCount(data.data.count);
       } catch (err) {
-        console.error('Failed to fetch unread count:', err);
+
       }
     };
 
@@ -41,16 +41,14 @@ const Layout = ({ children, sidebar }) => {
   // Listen for new notifications via Socket.io
   useEffect(() => {
     if (!socket || !connected) {
-      console.log('⚠️ Socket not ready:', { socket: !!socket, connected });
+
       return;
     }
 
-    console.log('✅ Socket ready, subscribing to notifications');
-
     const handleNotification = (data) => {
-      console.log('📬 New notification received:', data);
+
       setUnreadCount(prev => {
-        console.log(`📊 Unread count: ${prev} → ${prev + 1}`);
+
         return prev + 1;
       });
       
@@ -61,7 +59,7 @@ const Layout = ({ children, sidebar }) => {
     };
 
     const handleNotificationRead = () => {
-      console.log('✓ Notification read event received');
+
       // Refresh unread count when notification is marked as read
       fetchUnreadCount();
     };
@@ -70,7 +68,7 @@ const Layout = ({ children, sidebar }) => {
     socket.on('notification:read', handleNotificationRead);
 
     return () => {
-      console.log('🔌 Unsubscribing from notification events');
+
       socket.off('notification', handleNotification);
       socket.off('notification:read', handleNotificationRead);
     };
@@ -82,7 +80,7 @@ const Layout = ({ children, sidebar }) => {
       const { data } = await api.get('/notifications/unread-count');
       setUnreadCount(data.data.count);
     } catch (err) {
-      console.error('Failed to fetch unread count:', err);
+
     }
   };
 

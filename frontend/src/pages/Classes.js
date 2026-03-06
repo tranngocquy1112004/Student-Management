@@ -92,7 +92,12 @@ const Classes = () => {
       <div className="page-header">
         <h1>{user?.role === 'student' ? 'Lớp của tôi' : 'Quản lý lớp học'}</h1>
         {user?.role === 'admin' && (
-          <button className="btn-primary" onClick={() => { setEditing(null); setModal('create'); }}>+ Thêm lớp</button>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => { setEditing(null); setModal('create'); }}
+          >
+            + Thêm lớp
+          </button>
         )}
       </div>
       {restrictedStatus === 'dismissed' && user?.role === 'student' && (
@@ -181,17 +186,37 @@ const Classes = () => {
                 </td>
                 <td>{c.status}</td>
                 <td>
-                  {!restrictedStatus && <Link to={`/classes/${c._id}`}>Chi tiết</Link>}
+                  {!restrictedStatus && (
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => window.location.href = `/classes/${c._id}`}
+                    >
+                      Chi tiết
+                    </button>
+                  )}
                   {restrictedStatus && user?.role === 'student' && (
                     <span style={{ color: '#999', fontStyle: 'italic' }}>Không khả dụng</span>
                   )}
                   {user?.role === 'admin' && (
                     <>
-                      <button onClick={() => { setEditing(c); setModal('edit'); }}>Sửa</button>
-                      <button onClick={() => handleStatus(c, c.status === 'active' ? 'closed' : 'active')}>
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={() => { setEditing(c); setModal('edit'); }}
+                      >
+                        Sửa
+                      </button>
+                      <button 
+                        className="btn btn-outline"
+                        onClick={() => handleStatus(c, c.status === 'active' ? 'closed' : 'active')}
+                      >
                         {c.status === 'active' ? 'Đóng' : 'Mở'}
                       </button>
-                      <button className="btn-danger" onClick={() => handleDelete(c._id, c.name)}>Xóa</button>
+                      <button 
+                        className="btn btn-danger"
+                        onClick={() => handleDelete(c._id, c.name)}
+                      >
+                        Xóa
+                      </button>
                     </>
                   )}
                 </td>

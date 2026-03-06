@@ -17,12 +17,11 @@ export const useSocketChat = (conversationId) => {
     const socket = context.getSocket();
     if (!socket || !socket.connected) return;
 
-    console.log(`👥 Joining conversation room: ${conversationId}`);
     socket.emit('conversation:join', { conversationId });
 
     // Leave room on cleanup
     return () => {
-      console.log(`👋 Leaving conversation room: ${conversationId}`);
+
       socket.emit('conversation:leave', { conversationId });
       
       // Stop typing indicator if active
@@ -47,7 +46,7 @@ export const useSocketChat = (conversationId) => {
 
     // Only emit if not already typing
     if (!isTypingRef.current) {
-      console.log(`⌨️  Starting typing in conversation: ${conversationId}`);
+
       socket.emit('typing:start', { conversationId });
       isTypingRef.current = true;
     }
@@ -71,7 +70,7 @@ export const useSocketChat = (conversationId) => {
     if (!socket || !socket.connected) return;
 
     if (isTypingRef.current) {
-      console.log(`⌨️  Stopping typing in conversation: ${conversationId}`);
+
       socket.emit('typing:stop', { conversationId });
       isTypingRef.current = false;
     }

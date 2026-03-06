@@ -31,7 +31,6 @@ import AdminLeaveRequests from './pages/AdminLeaveRequests';
 import AdminExpulsionManagement from './pages/AdminExpulsionManagement';
 import StudentExpulsionView from './pages/StudentExpulsionView';
 import StudentWarningsView from './pages/StudentWarningsView';
-import TeacherViolationReports from './pages/TeacherViolationReports';
 import AdminBroadcastNotification from './pages/AdminBroadcastNotification';
 import Chat from './pages/Chat';
 import { ChatProvider } from './context/ChatContext';
@@ -106,7 +105,6 @@ const TeacherSidebar = () => {
     <>
       <NavLink to="/">📊 Dashboard</NavLink>
       <NavLink to="/classes">🎓 Lớp của tôi</NavLink>
-      <NavLink to="/teacher/violations">📝 Báo cáo vi phạm</NavLink>
       <ChatNavLink to="/chat" unreadCount={chatUnreadCount}>💬 Chat</ChatNavLink>
       <NavLink to="/notifications">🔔 Thông báo</NavLink>
       <NavLink to="/profile">👤 Tài khoản</NavLink>
@@ -188,7 +186,6 @@ function App() {
                       <Route path="/admin/broadcast" element={<ProtectedRoute roles={['admin']}><LayoutWrapper><AdminBroadcastNotification /></LayoutWrapper></ProtectedRoute>} />
                       <Route path="/student/expulsion" element={<ProtectedRoute roles={['student']}><LayoutWrapper><StudentExpulsionView /></LayoutWrapper></ProtectedRoute>} />
                       <Route path="/student/warnings" element={<ProtectedRoute roles={['student']}><LayoutWrapper><StudentWarningsView /></LayoutWrapper></ProtectedRoute>} />
-                      <Route path="/teacher/violations" element={<ProtectedRoute roles={['teacher']}><LayoutWrapper><TeacherViolationReports /></LayoutWrapper></ProtectedRoute>} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </BrowserRouter>

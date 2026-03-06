@@ -19,6 +19,11 @@ class ChatService {
    * @returns {Promise<Object>} - Conversation object
    */
   static async createOrGetConversation(userId1, userId2) {
+    // Prevent self-conversation
+    if (userId1.toString() === userId2.toString()) {
+      throw new Error('Cannot create conversation with yourself');
+    }
+
     // Validate users exist
     const [user1, user2] = await Promise.all([
       User.findById(userId1),

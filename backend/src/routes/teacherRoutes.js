@@ -5,6 +5,7 @@ import { protect, authorize } from '../middleware/auth.js';
 const router = express.Router();
 router.use(protect);
 router.get('/', authorize('admin', 'teacher'), teacherController.getTeachers);
+router.get('/my-students', authorize('teacher'), teacherController.getTeacherStudents);
 router.get('/:id', authorize('admin'), teacherController.getTeacherById);
 router.put('/:id', authorize('admin'), teacherController.updateTeacher);
 router.get('/:id/classes', authorize('admin', 'teacher'), teacherController.getTeacherClasses);

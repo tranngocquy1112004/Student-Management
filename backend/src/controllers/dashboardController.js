@@ -110,20 +110,24 @@ export const getTeacherDashboard = async (req, res) => {
 export const getStudentDashboard = async (req, res) => {
   try {
     const enrollments = await Enrollment.find({ studentId: req.user._id }).distinct('classId');
-    const gradebook = await Gradebook.find({ classId: { $in: enrollments }, studentId: req.user._id, isDeleted: false });
-    const gpa = gradebook.length > 0
-      ? gradebook.reduce((a, b) => a + (b.total || 0), 0) / gradebook.length
-      : 0;
+    
+    // Calculate GPA using new service
+    const gpaService = (await import('../services/gpaService.js')).default;
+    const gpaData = await gpaService.calculateStudentGPA(req.user._id);
+    
     const assignments = await Assignment.find({ classId: { $in: enrollments }, status: 'published', isDeleted: false, deadline: { $gt: new Date() } }).sort({ deadline: 1 }).limit(5);
     const submissions = await Submission.find({ studentId: req.user._id, assignmentId: { $in: assignments.map(a => a._id) } });
     const submittedCount = submissions.filter(s => s.status !== 'graded').length;
     const sessions = await AttendanceSession.find({ classId: { $in: enrollments }, isDeleted: false });
     const records = await AttendanceRecord.find({ sessionId: { $in: sessions.map(s => s._id) }, studentId: req.user._id });
     const attendRate = sessions.length > 0 ? Math.round((records.filter(r => r.status === 'present').length / sessions.length) * 100) : 0;
+    
     res.json({
       success: true,
       data: {
-        gpa: Math.round(gpa * 100) / 100,
+        gpa: gpaData.gpa,
+        averageScore: gpaData.averageScore,
+        completedAssignments: gpaData.completedAssignments,
         totalClasses: enrollments.length,
         upcomingAssignments: assignments,
         submitProgress: { total: assignments.length, submitted: submittedCount },

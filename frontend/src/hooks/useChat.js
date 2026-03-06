@@ -64,7 +64,7 @@ export const useChat = () => {
         }
       }
     } catch (err) {
-      console.error('Error loading conversations:', err);
+//       console.error('Error loading conversations:', err);
       setError(err.response?.data?.error?.message || 'Failed to load conversations');
       toast.error('Không thể tải danh sách hội thoại');
     } finally {
@@ -123,7 +123,7 @@ export const useChat = () => {
       await markAsRead(conversationId);
       
     } catch (err) {
-      console.error('Error selecting conversation:', err);
+//       console.error('Error selecting conversation:', err);
       setError(err.response?.data?.error?.message || 'Failed to load conversation');
       toast.error('Không thể tải hội thoại');
     } finally {
@@ -145,10 +145,10 @@ export const useChat = () => {
       });
       
       localStorage.setItem('unsent_messages', JSON.stringify(unsent));
-      console.log('💾 Saved unsent message to localStorage');
+//       console.log('💾 Saved unsent message to localStorage');
       
     } catch (error) {
-      console.error('Error saving unsent message:', error);
+//       console.error('Error saving unsent message:', error);
     }
   }, []);
 
@@ -173,7 +173,7 @@ export const useChat = () => {
         
         // Retry with exponential backoff
         const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-        console.log(`Retrying message send in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+//         console.log(`Retrying message send in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
         
         await new Promise(resolve => setTimeout(resolve, delay));
         return sendMessage(content, retryCount + 1);
@@ -209,7 +209,7 @@ export const useChat = () => {
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           // Timeout after 5 seconds
-          console.error('Message send timeout');
+//           console.error('Message send timeout');
           
           // If we haven't exhausted retries, try again
           if (retryCount < MAX_RETRIES) {
@@ -300,7 +300,7 @@ export const useChat = () => {
       });
       
     } catch (err) {
-      console.error('Error sending message:', err);
+//       console.error('Error sending message:', err);
       setError(err.message || 'Failed to send message');
       toast.error(err.message || 'Không thể gửi tin nhắn');
       throw err;
@@ -346,7 +346,7 @@ export const useChat = () => {
         }));
       }
     } catch (err) {
-      console.error('Error loading more messages:', err);
+//       console.error('Error loading more messages:', err);
       setError(err.response?.data?.error?.message || 'Failed to load more messages');
       toast.error('Không thể tải thêm tin nhắn');
     } finally {
@@ -376,10 +376,10 @@ export const useChat = () => {
         return conv;
       }));
       
-      console.log('✅ Marked conversation as read:', conversationId);
+//       console.log('✅ Marked conversation as read:', conversationId);
       
     } catch (err) {
-      console.error('Error marking as read:', err);
+//       console.error('Error marking as read:', err);
       // Don't show error toast for this, it's not critical
     }
   }, [user, setConversations]);

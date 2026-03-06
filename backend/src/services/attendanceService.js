@@ -213,9 +213,63 @@ export const getAttendanceReport = async (filters = {}) => {
 
 /**
  * Calculate attendance statistics for a class
- * Returns total sessions, total check-ins, and attendance rate
+ * Returns today's attendance statistics
  */
 export const calculateStatistics = async (classId) => {
+  // Get class info
+  const Class = (await import('../models/Class.js')).default;
+  const classInfo = await Class.findById(classId).select('name');
+  
+  // Get today's date range
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  
+  // Get today's session for the class
+  const todaySession = await AttendanceSession.findOne({
+    classId,
+    date: { $gte: todayStart, $lte: todayEnd },
+    isDeleted: false
+  });
+  
+  // Get total enrolled students
+  const enrollments = await Enrollment.find({ classId });
+  const totalStudents = enrollments.length;
+  
+  // If no session today, return 0 attendance
+  if (!todaySession) {
+    return {
+      className: classInfo?.name || 'Unknown',
+      totalStudents,
+      studentsAttended: 0,
+      attendanceRate: 0
+    };
+  }
+  
+  // Get attendance records for today's session
+  const records = await AttendanceRecord.find({
+    sessionId: todaySession._id,
+    status: 'present'
+  });
+  
+  const studentsAttended = records.length;
+  const attendanceRate = totalStudents > 0 ? (studentsAttended / totalStudents) * 100 : 0;
+  
+  return {
+    className: classInfo?.name || 'Unknown',
+    totalStudents,
+    studentsAttended,
+    attendanceRate: Math.round(attendanceRate * 100) / 100
+  };
+};
+
+/**
+ * Calculate overall attendance statistics for a class
+ * Returns total attendance rate across all sessions
+ */
+export const calculateOverallStatistics = async (classId) => {
   // Get all sessions for the class
   const sessions = await AttendanceSession.find({
     classId,
@@ -249,11 +303,94 @@ export const calculateStatistics = async (classId) => {
 };
 
 /**
+ * Get detailed attendance statistics by date
+ * Returns attendance data for each session with student details
+ */
+export const getDetailedAttendanceStatistics = async (classId) => {
+  const Class = (await import('../models/Class.js')).default;
+  const Student = (await import('../models/Student.js')).default;
+  
+  // Get class info
+  const classInfo = await Class.findById(classId).select('name');
+  
+  // Get all sessions for the class (sorted from oldest to newest)
+  const sessions = await AttendanceSession.find({
+    classId,
+    isDeleted: false
+  }).populate('scheduleId').sort({ date: 1 });
+  
+  // Get all enrolled students
+  const enrollments = await Enrollment.find({ classId }).populate({
+    path: 'studentId',
+    select: 'name email studentCode'
+  });
+  
+  const totalStudents = enrollments.length;
+  const allStudents = enrollments.map(e => e.studentId);
+  
+  // Build detailed statistics for each session
+  const detailedStats = await Promise.all(
+    sessions.map(async (session) => {
+      // Get attendance records for this session
+      const records = await AttendanceRecord.find({
+        sessionId: session._id,
+        status: 'present'
+      }).populate('studentId', 'name email studentCode');
+      
+      const attendedStudentIds = records.map(r => r.studentId._id.toString());
+      
+      // Separate attended and absent students
+      const attendedStudents = records.map(r => ({
+        _id: r.studentId._id,
+        name: r.studentId.name,
+        email: r.studentId.email,
+        studentCode: r.studentId.studentCode,
+        checkedAt: r.checkedAt
+      }));
+      
+      const absentStudents = allStudents
+        .filter(s => !attendedStudentIds.includes(s._id.toString()))
+        .map(s => ({
+          _id: s._id,
+          name: s.name,
+          email: s.email,
+          studentCode: s.studentCode
+        }));
+      
+      const attendanceRate = totalStudents > 0 
+        ? Math.round((attendedStudents.length / totalStudents) * 100) 
+        : 0;
+      
+      return {
+        sessionId: session._id,
+        date: session.date,
+        dayOfWeek: new Date(session.date).getDay(),
+        startTime: session.startTime,
+        endTime: session.endTime,
+        room: session.scheduleId?.room || '-',
+        totalStudents,
+        studentsAttended: attendedStudents.length,
+        studentsAbsent: absentStudents.length,
+        attendanceRate,
+        attendedStudents,
+        absentStudents
+      };
+    })
+  );
+  
+  return {
+    className: classInfo?.name || 'Unknown',
+    totalStudents,
+    sessions: detailedStats
+  };
+};
+
+/**
  * Calculate attendance rate for a class
  * Returns percentage of students who attended vs expected
  */
 export const calculateAttendanceRate = async (classId) => {
-  const stats = await calculateStatistics(classId);
+  const stats = await calculateOverallStatistics(classId);
   return {
     classId,
     attendanceRate: stats.attendanceRate,
@@ -278,7 +415,7 @@ export const getTeacherClassesAttendanceRate = async (teacherId) => {
   // Calculate attendance rate for each class
   const rates = await Promise.all(
     classes.map(async (cls) => {
-      const stats = await calculateStatistics(cls._id);
+      const stats = await calculateOverallStatistics(cls._id);
       return {
         classId: cls._id,
         className: cls.name,
@@ -300,6 +437,8 @@ export default {
   getStudentAttendanceStatus,
   getAttendanceReport,
   calculateStatistics,
+  calculateOverallStatistics,
+  getDetailedAttendanceStatistics,
   calculateAttendanceRate,
   getTeacherClassesAttendanceRate
 };

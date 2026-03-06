@@ -11,6 +11,7 @@ router.get('/attendance/validate-schedule/:classId', attendanceController.valida
 
 // Statistics and rates
 router.get('/attendance/statistics/:classId', attendanceController.getStatistics);
+router.get('/attendance/detailed-statistics/:classId', attendanceController.getDetailedStatistics);
 router.get('/attendance/rate/:classId', checkExpelledStatus, attendanceController.getAttendanceRate);
 router.get('/attendance/teacher-rates', attendanceController.getTeacherAttendanceRates);
 router.get('/attendance/teacher-rates/:teacherId', attendanceController.getTeacherAttendanceRates);

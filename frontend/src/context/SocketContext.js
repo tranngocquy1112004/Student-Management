@@ -19,7 +19,7 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     if (!user) {
-      console.log('👤 No user, disconnecting socket');
+
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -30,11 +30,9 @@ export const SocketProvider = ({ children }) => {
 
     const token = localStorage.getItem('token');
     if (!token) {
-      console.log('🔑 No token found');
+
       return;
     }
-
-    console.log('🔌 Initializing socket connection for user:', user.email);
 
     const newSocket = io(process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000', {
       auth: { token },
@@ -44,24 +42,24 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on('connect', () => {
-      console.log('✅ Socket connected, ID:', newSocket.id);
+
       setConnected(true);
     });
 
     newSocket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+
       setConnected(false);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('🔴 Socket connection error:', error.message);
+
       setConnected(false);
     });
 
     setSocket(newSocket);
 
     return () => {
-      console.log('🔌 Cleaning up socket connection');
+
       newSocket.disconnect();
     };
   }, [user]);

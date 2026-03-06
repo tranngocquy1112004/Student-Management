@@ -90,7 +90,6 @@ export const useMessages = (conversationId) => {
   // Check if message is from current user
   const isOwnMessage = useCallback((message) => {
     if (!user || !message) {
-      console.warn('⚠️ isOwnMessage: Missing user or message', { hasUser: !!user, hasMessage: !!message });
       return false;
     }
     
@@ -106,7 +105,6 @@ export const useMessages = (conversationId) => {
     } else if (typeof message.senderId === 'string') {
       senderId = message.senderId;
     } else {
-      console.error('❌ Invalid senderId format:', message.senderId);
       return false;
     }
     
@@ -114,7 +112,6 @@ export const useMessages = (conversationId) => {
     const userId = user._id || user.id;
     
     if (!senderId || !userId) {
-      console.error('❌ Missing senderId or userId:', { senderId, userId });
       return false;
     }
     
@@ -125,16 +122,6 @@ export const useMessages = (conversationId) => {
     const isOwn = senderIdStr === userIdStr;
     
     // Debug log for troubleshooting
-    console.log('🔍 isOwnMessage check:', {
-      messageId: message._id,
-      senderId: senderIdStr,
-      userId: userIdStr,
-      isOwn,
-      isPending: message.pending,
-      senderIdType: typeof message.senderId,
-      senderIdValue: message.senderId
-    });
-    
     return isOwn;
   }, [user]);
 

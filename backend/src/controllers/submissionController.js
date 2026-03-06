@@ -248,6 +248,16 @@ export const gradeSubmission = async (req, res) => {
     sub.gradedBy = req.user._id;
     sub.gradedAt = new Date();
     await sub.save();
+    
+    // Update student GPA after grading
+    try {
+      const gpaService = (await import('../services/gpaService.js')).default;
+      await gpaService.updateStudentGPAAfterGrading(sub.studentId);
+    } catch (gpaError) {
+      // Log error but don't fail the grading
+      console.error('Error updating GPA:', gpaError);
+    }
+    
     res.json({ success: true, data: sub });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

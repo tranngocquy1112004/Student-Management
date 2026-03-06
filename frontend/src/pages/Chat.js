@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChatLayout } from '../components/chat';
 import { useChat } from '../hooks/useChat';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const Chat = () => {
@@ -16,12 +17,18 @@ const Chat = () => {
     currentConversation
   } = useChat();
   
+  const { user } = useAuth();
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+  const conversationsLoaded = useRef(false);
 
-  // Load conversations on mount
+  // Load conversations on mount - only after user is available
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    if (user && !conversationsLoaded.current) {
+
+      conversationsLoaded.current = true;
+      loadConversations();
+    }
+  }, [user, loadConversations]);
 
   // Mark current conversation as read when it changes
   useEffect(() => {
@@ -34,16 +41,15 @@ const Chat = () => {
   useEffect(() => {
     const conversationId = searchParams.get('conversation');
     
-    if (conversationId && conversations.length > 0) {
-      console.log('Opening conversation from notification:', conversationId);
-      
-      // Select the conversation
+    if (conversationId) {
+
+      // Select the conversation (will fetch if not in local state)
       selectConversation(conversationId);
       
       // Clear the URL parameter
       window.history.replaceState({}, '', '/chat');
     }
-  }, [searchParams, conversations, selectConversation]);
+  }, [searchParams, selectConversation]);
 
   // Request notification permission on first interaction
   useEffect(() => {

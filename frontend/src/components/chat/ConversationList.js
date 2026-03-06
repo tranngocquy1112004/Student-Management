@@ -4,6 +4,7 @@ import ConversationItem from './ConversationItem';
 import UserSearch from './UserSearch';
 import { useChat } from '../../hooks/useChat';
 import { useConversations } from '../../hooks/useConversations';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * Component to display list of conversations
@@ -17,17 +18,46 @@ import { useConversations } from '../../hooks/useConversations';
  * Validates: Requirements 1.4, 1.5, 1.6, 4.3, 4.4, 5.3, 10.1, 10.2, 10.3
  */
 const ConversationList = ({ onConversationSelect }) => {
-  const { loadConversations, selectConversation, currentConversation, loading } = useChat();
+  const { selectConversation, currentConversation, loading } = useChat();
   const { conversations, filterConversations } = useConversations();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const conversationRefs = useRef([]);
+  const autoSelectAttempted = useRef(false);
 
+  // Auto-select first conversation on initial load - only once
   useEffect(() => {
-    // Load conversations on mount
-    loadConversations();
-  }, [loadConversations]);
+    // Only auto-select if:
+    // 1. Haven't attempted auto-select yet
+    // 2. No conversation is currently selected
+    // 3. Conversations are loaded (length > 0)
+    // 4. Not currently loading
+    // 5. User is available
+    if (!autoSelectAttempted.current && !currentConversation && conversations.length > 0 && !loading && user) {
+      // Mark as attempted immediately to prevent double-selection
+      autoSelectAttempted.current = true;
+      
+      // Find first conversation where current user is a participant
+      const userConversations = conversations.filter(conv => 
+        conv.participants.some(p => p.userId._id === user._id)
+      );
+      
+      if (userConversations.length > 0) {
+        const firstConversation = userConversations[0];
+
+        selectConversation(firstConversation._id);
+      } else {
+
+        // If admin, may still select first conversation to view
+        if (user?.role === 'admin' && conversations.length > 0) {
+
+          selectConversation(conversations[0]._id);
+        }
+      }
+    }
+  }, [conversations, currentConversation, loading, selectConversation, user]);
 
   const handleConversationClick = async (conversationId) => {
     await selectConversation(conversationId);

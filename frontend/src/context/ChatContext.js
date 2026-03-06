@@ -41,7 +41,7 @@ export const ChatProvider = ({ children }) => {
         name: 'Unknown',
         avatar: null
       };
-      console.warn('⚠️ Normalized string senderId to object:', message.senderId);
+//       console.warn('⚠️ Normalized string senderId to object:', message.senderId);
     } else if (typeof message.senderId === 'object' && message.senderId !== null) {
       // Ensure _id field exists
       if (!message.senderId._id && message.senderId.id) {
@@ -51,7 +51,7 @@ export const ChatProvider = ({ children }) => {
         };
       }
     } else {
-      console.error('❌ Invalid senderId format:', message.senderId);
+//       console.error('❌ Invalid senderId format:', message.senderId);
       return null;
     }
     
@@ -66,12 +66,12 @@ export const ChatProvider = ({ children }) => {
     if (user) {
       const token = localStorage.getItem('token');
       if (token) {
-        console.log('Initializing socket connection for user:', user._id);
+//         console.log('Initializing socket connection for user:', user._id);
         const socket = initializeSocket(token);
         
         // Set up connection status handlers
         socket.on('connect', async () => {
-          console.log('Socket connected');
+//           console.log('Socket connected');
           setConnectionStatus('connected');
           setError(null);
           
@@ -81,22 +81,22 @@ export const ChatProvider = ({ children }) => {
             const response = await api.get('/chat/online-users');
             if (response.data.success) {
               const onlineUserIds = response.data.data.onlineUsers;
-              console.log('📡 Initial online users:', onlineUserIds);
+//               console.log('📡 Initial online users:', onlineUserIds);
               setOnlineUsers(new Set(onlineUserIds));
             }
           } catch (error) {
-            console.error('Failed to fetch initial online users:', error);
+//             console.error('Failed to fetch initial online users:', error);
           }
         });
         
         socket.on('connect_error', (error) => {
-          console.error('Socket connection error:', error.message);
+//           console.error('Socket connection error:', error.message);
           setConnectionStatus('error');
           setError('Lỗi kết nối. Đang thử kết nối lại...');
         });
         
         socket.on('disconnect', (reason) => {
-          console.log('Socket disconnected:', reason);
+//           console.log('Socket disconnected:', reason);
           setConnectionStatus('disconnected');
           
           if (reason === 'io server disconnect') {
@@ -106,13 +106,13 @@ export const ChatProvider = ({ children }) => {
         });
         
         socket.on('reconnect_attempt', (attemptNumber) => {
-          console.log(`Socket reconnecting... (attempt ${attemptNumber})`);
+//           console.log(`Socket reconnecting... (attempt ${attemptNumber})`);
           setConnectionStatus('reconnecting');
           setError(`Đang kết nối lại... (lần thử ${attemptNumber})`);
         });
         
         socket.on('reconnect', (attemptNumber) => {
-          console.log(`Socket reconnected after ${attemptNumber} attempts`);
+//           console.log(`Socket reconnected after ${attemptNumber} attempts`);
           setConnectionStatus('connected');
           setError(null);
           
@@ -126,7 +126,7 @@ export const ChatProvider = ({ children }) => {
         });
         
         socket.on('reconnect_failed', () => {
-          console.error('Socket reconnection failed after max attempts');
+//           console.error('Socket reconnection failed after max attempts');
           setConnectionStatus('failed');
           setError('Không thể kết nối lại. Vui lòng tải lại trang.');
           
@@ -157,18 +157,18 @@ export const ChatProvider = ({ children }) => {
   const setupSocketEventHandlers = useCallback((socket) => {
     // Handle incoming message
     socket.on('message:receive', ({ conversationId, message }) => {
-      console.log('📨 Message received:', message);
+//       console.log('📨 Message received:', message);
       
       // Validate message structure
       if (!message || !message.content || !message.senderId) {
-        console.error('❌ Invalid message received:', message);
+//         console.error('❌ Invalid message received:', message);
         return;
       }
       
       // Normalize message structure
       const normalizedMessage = normalizeMessage(message);
       if (!normalizedMessage) {
-        console.error('❌ Failed to normalize message:', message);
+//         console.error('❌ Failed to normalize message:', message);
         return;
       }
       
@@ -213,9 +213,9 @@ export const ChatProvider = ({ children }) => {
               : p
           );
           
-          console.log('📊 Incremented unread count for conversation:', conversationId);
+//           console.log('📊 Incremented unread count for conversation:', conversationId);
         } else {
-          console.log('👁️ User is viewing this conversation, not incrementing unread count');
+//           console.log('👁️ User is viewing this conversation, not incrementing unread count');
         }
         
         // Remove from current position and add to top
@@ -238,7 +238,7 @@ export const ChatProvider = ({ children }) => {
           conversationId,
           (data) => {
             // Handle notification click - navigate to chat and select conversation
-            console.log('Notification clicked:', data);
+//             console.log('Notification clicked:', data);
             
             // Navigate to chat page
             window.location.href = `/chat?conversation=${data.conversationId}`;
@@ -249,18 +249,18 @@ export const ChatProvider = ({ children }) => {
     
     // Handle message sent confirmation
     socket.on('message:sent', ({ conversationId, message }) => {
-      console.log('✅ Message sent confirmation:', message);
+//       console.log('✅ Message sent confirmation:', message);
       
       // Validate message structure
       if (!message || !message.content || !message.senderId) {
-        console.error('❌ Invalid message sent confirmation:', message);
+//         console.error('❌ Invalid message sent confirmation:', message);
         return;
       }
       
       // Normalize message structure
       const normalizedMessage = normalizeMessage(message);
       if (!normalizedMessage) {
-        console.error('❌ Failed to normalize message:', message);
+//         console.error('❌ Failed to normalize message:', message);
         return;
       }
       
@@ -274,7 +274,7 @@ export const ChatProvider = ({ children }) => {
           // Match by content and pending status - only replace the first match
           if (!replaced && m.pending && m.content === normalizedMessage.content) {
             replaced = true;
-            console.log('🔄 Replacing pending message:', m._id, 'with confirmed:', normalizedMessage._id);
+//             console.log('🔄 Replacing pending message:', m._id, 'with confirmed:', normalizedMessage._id);
             return normalizedMessage;
           }
           return m;
@@ -285,7 +285,7 @@ export const ChatProvider = ({ children }) => {
         if (!replaced) {
           const exists = updatedMessages.find(m => m._id === normalizedMessage._id);
           if (!exists) {
-            console.log('➕ Adding confirmed message (no pending found):', normalizedMessage._id);
+//             console.log('➕ Adding confirmed message (no pending found):', normalizedMessage._id);
             updatedMessages.push(normalizedMessage);
           }
         }
@@ -299,7 +299,7 @@ export const ChatProvider = ({ children }) => {
     
     // Handle typing start
     socket.on('typing:start', ({ conversationId, userId, userName }) => {
-      console.log(`⌨️  ${userName} is typing in conversation ${conversationId}`);
+//       console.log(`⌨️  ${userName} is typing in conversation ${conversationId}`);
       
       setTypingUsers(prev => {
         const newMap = new Map(prev);
@@ -310,7 +310,7 @@ export const ChatProvider = ({ children }) => {
     
     // Handle typing stop
     socket.on('typing:stop', ({ conversationId }) => {
-      console.log(`⌨️  Typing stopped in conversation ${conversationId}`);
+//       console.log(`⌨️  Typing stopped in conversation ${conversationId}`);
       
       setTypingUsers(prev => {
         const newMap = new Map(prev);
@@ -321,7 +321,7 @@ export const ChatProvider = ({ children }) => {
     
     // Handle user online
     socket.on('user:online', ({ userId }) => {
-      console.log(`🟢 User ${userId} is online`);
+//       console.log(`🟢 User ${userId} is online`);
       
       setOnlineUsers(prev => {
         const newSet = new Set(prev);
@@ -332,7 +332,7 @@ export const ChatProvider = ({ children }) => {
     
     // Handle user offline
     socket.on('user:offline', ({ userId }) => {
-      console.log(`⚫ User ${userId} is offline`);
+//       console.log(`⚫ User ${userId} is offline`);
       
       setOnlineUsers(prev => {
         const newSet = new Set(prev);
@@ -343,7 +343,7 @@ export const ChatProvider = ({ children }) => {
     
     // Handle conversation updated
     socket.on('conversation:updated', async ({ conversationId }) => {
-      console.log(`🔄 Conversation ${conversationId} updated`);
+//       console.log(`🔄 Conversation ${conversationId} updated`);
       
       // Optionally refresh conversation data from API
       // For now, we rely on message:receive to update the conversation
@@ -351,7 +351,7 @@ export const ChatProvider = ({ children }) => {
     
     // Handle socket errors
     socket.on('error', ({ code, message }) => {
-      console.error('❌ Socket error:', code, message);
+//       console.error('❌ Socket error:', code, message);
       setError(message || 'Đã xảy ra lỗi kết nối');
       
       // Show error toast
@@ -368,7 +368,7 @@ export const ChatProvider = ({ children }) => {
       if (!unsentStr) return;
       
       const unsentMessages = JSON.parse(unsentStr);
-      console.log(`🔄 Syncing ${unsentMessages.length} unsent messages`);
+//       console.log(`🔄 Syncing ${unsentMessages.length} unsent messages`);
       
       const socket = getSocket();
       if (!socket || !socket.connected) return;
@@ -384,7 +384,7 @@ export const ChatProvider = ({ children }) => {
       localStorage.removeItem('unsent_messages');
       
     } catch (error) {
-      console.error('Error syncing unsent messages:', error);
+//       console.error('Error syncing unsent messages:', error);
     }
   }, []);
 

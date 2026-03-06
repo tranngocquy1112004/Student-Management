@@ -9,11 +9,11 @@
   width: 30%;
   min-width: 300px;
   background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-primary);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.02);
 }
 
@@ -50,7 +50,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 10;
+    z-index: var(--z-dropdown);
   }
 
   .mobile-hidden {

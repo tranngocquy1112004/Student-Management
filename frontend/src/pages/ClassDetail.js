@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
 import ResetPasswordModal from '../components/ResetPasswordModal';
 import AttendanceStatistics from '../components/AttendanceStatistics';
+import DetailedAttendanceStatistics from '../components/DetailedAttendanceStatistics';
 import ScheduleGeneratorModal from '../components/ScheduleGeneratorModal';
 import * as XLSX from 'xlsx';
 import './Table.css';
@@ -94,34 +95,6 @@ const ClassDetail = () => {
     setGradebook(d.gradebook || []);
     setAssignmentsList(d.assignments || []);
     setSubmissions(d.submissions || []);
-    
-    // Debug logging chi tiết
-    console.log('=== GRADEBOOK DEBUG ===');
-    console.log('Gradebook data:', {
-      gradebook: d.gradebook?.length || 0,
-      assignments: d.assignments?.length || 0,
-      submissions: d.submissions?.length || 0,
-      userRole: user?.role,
-      userId: user?._id,
-      classId: id
-    });
-    
-    if (d.submissions && d.submissions.length > 0) {
-      console.log('All submissions:', d.submissions);
-      console.log('Sample submission structure:', d.submissions[0]);
-    } else {
-      console.log('❌ NO SUBMISSIONS DATA FOUND!');
-    }
-    
-    if (d.assignments && d.assignments.length > 0) {
-      console.log('All assignments:', d.assignments.map(a => ({ 
-        id: a._id, 
-        title: a.title, 
-        status: a.status 
-      })));
-    }
-    
-    console.log('=== END DEBUG ===');
   });
   const fetchAnnouncements = () => api.get(`/classes/${id}/announcements`).then(({ data }) => setAnnouncements(data.data));
   const fetchSchedules = () => api.get(`/classes/${id}/schedules`).then(({ data }) => setSchedules(data.data));
@@ -162,30 +135,23 @@ const ClassDetail = () => {
 
   useEffect(() => { fetchClass(); }, [id]);
   useEffect(() => {
-    if (!id) return;
-    console.log('=== USEEFFECT DEBUG ===');
-    console.log('Fetching data for class:', id);
-    console.log('User role:', user?.role);
-    console.log('User ID:', user?._id);
+    if (!id || !user) return;
     
     fetchStudents();
     fetchAssignments().catch(() => {});
-    if (canEdit) {
-      console.log('Fetching gradebook (teacher/admin)...');
-      fetchGradebook().catch(() => {});
-    }
     fetchAnnouncements().catch(() => {});
     fetchSchedules().catch(() => {});
-    // always fetch attendance sessions for both students and teachers
-  // fetchAttendance().catch(() => {});  // Tạm thởi comment để tránh 404 error
-  if (user?.role === 'student') {
-    console.log('Fetching gradebook (student)...');
-    fetchGradebook().catch(() => {});
-    fetchMyAttendance();
-    fetchMyEnrollment();
-    fetchStudentAttendanceStatus();
-  }
-  console.log('=== END USEEFFECT DEBUG ===');
+    
+    if (canEdit) {
+      fetchGradebook().catch(() => {});
+    }
+    
+    if (user?.role === 'student') {
+      fetchGradebook().catch(() => {});
+      fetchMyAttendance();
+      fetchMyEnrollment();
+      fetchStudentAttendanceStatus();
+    }
   }, [id, canEdit, user]);
   
   // Refresh data when coming back from submission page
@@ -393,7 +359,6 @@ const ClassDetail = () => {
       const { data } = await api.get(`/classes/${id}/attendance/status`);
       setStudentAttendanceStatus(data);
     } catch (error) {
-      console.error('Error fetching attendance status:', error);
     }
   };
 
@@ -417,7 +382,6 @@ const ClassDetail = () => {
       
       toast.success(`Đã tải xuống ${attachment.name}`);
     } catch (error) {
-      console.error('Download error:', error);
       toast.error('Lỗi khi tải file: ' + error.message);
     }
   };
@@ -444,11 +408,7 @@ const ClassDetail = () => {
           questions: []
           // Không gửi attachments - sẽ upload file riêng
         };
-        
-        console.log(`Creating assignment with file: ${file.name}`);
         const response = await api.post(`/classes/${id}/assignments`, assignment);
-        console.log('Assignment created:', response.data);
-        
         // Upload file thực tế qua endpoint attachments
         const formData = new FormData();
         formData.append('file', file);
@@ -457,9 +417,7 @@ const ClassDetail = () => {
           const uploadResponse = await api.post(`/assignments/${response.data.data._id}/attachments`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          console.log(`File uploaded successfully:`, uploadResponse.data);
         } catch (uploadError) {
-          console.error('File upload error:', uploadError);
           toast.error(`Lỗi upload file ${file.name}: ${uploadError.message}`);
         }
       }
@@ -468,7 +426,6 @@ const ClassDetail = () => {
       fetchAssignments();
       
     } catch (error) {
-      console.error('Import error:', error);
       toast.error('Lỗi khi import file: ' + error.message);
     } finally {
       setImporting(false);
@@ -490,14 +447,8 @@ const ClassDetail = () => {
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
-        
-        console.log('Raw Excel data:', data);
-        console.log('Number of rows:', data.length);
-        
         // Process Excel data
         const assignments = data.map((row, index) => {
-          console.log(`Processing row ${index + 1}:`, row);
-          
           // Map mode từ Excel sang backend enum
           let mode = 'file'; // default
           const modeValue = (row['Loại'] || row['type'] || '').toLowerCase();
@@ -519,9 +470,6 @@ const ClassDetail = () => {
             questions: mode === 'quiz' ? parseQuestions(row['Câu hỏi'] || row['questions']) : []
           };
         });
-        
-        console.log('Processed assignments:', assignments);
-        
         setImporting(true);
         
         // Create assignments one by one
@@ -531,19 +479,13 @@ const ClassDetail = () => {
         for (const assignment of assignments) {
           if (assignment.title) {
             try {
-              console.log('Creating assignment:', assignment);
               const response = await api.post(`/classes/${id}/assignments`, assignment);
-              console.log('Assignment created response:', response.data);
               successCount++;
             } catch (error) {
-              console.error('Error creating assignment:', error.response?.data || error.message);
               errorCount++;
             }
           }
         }
-        
-        console.log(`Import summary: ${successCount} success, ${errorCount} errors`);
-        
         toast.success(`Đã import ${assignments.length} bài tập thành công!`);
         
         // Đợi một chút rồi fetch lại để đảm bảo backend đã xử lý xong
@@ -1520,7 +1462,12 @@ const ClassDetail = () => {
 
       {tab === 'attendance' && (
         <>
-          {canEdit && <AttendanceStatistics classId={id} refreshTrigger={attendanceSessions.length} />}
+          {canEdit && (
+            <>
+              <AttendanceStatistics classId={id} refreshTrigger={attendanceSessions.length} />
+              <DetailedAttendanceStatistics classId={id} refreshTrigger={attendanceSessions.length} />
+            </>
+          )}
           
           {user?.role === 'student' && (
             <div className="table-box">
@@ -1544,6 +1491,13 @@ const ClassDetail = () => {
                     const scheduleDate = new Date(schedule.date);
                     const dayOfWeek = scheduleDate.getDay();
                     
+                    // Check if session has expired
+                    const now = new Date();
+                    const [endHour, endMinute] = schedule.endTime.split(':').map(Number);
+                    const sessionEndTime = new Date(scheduleDate);
+                    sessionEndTime.setHours(endHour, endMinute, 0, 0);
+                    const isExpired = now > sessionEndTime;
+                    
                     return (
                       <tr key={schedule._id}>
                         <td>{DAYS[dayOfWeek]}</td>
@@ -1553,6 +1507,8 @@ const ClassDetail = () => {
                         <td>
                           {hasCheckedIn ? (
                             <span style={{ color: '#4caf50', fontWeight: 'bold' }}>✓ Đã điểm danh</span>
+                          ) : isExpired ? (
+                            <span style={{ color: '#dc3545', fontWeight: 'bold' }}>✗ Đã quá hạn</span>
                           ) : (
                             <button 
                               className="btn-primary" 
