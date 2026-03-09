@@ -626,34 +626,94 @@ export const downloadAnswerKey = async (req, res) => {
     
     console.log(`✅ Found ${questions.length} questions`);
     
-    // Generate answer key text
-    let answerKeyText = `ĐÁP ÁN - ${assignment.title}\n`;
-    answerKeyText += `Môn: ${assignment.classId?.name || 'N/A'}\n`;
-    answerKeyText += `Số câu hỏi: ${questions.length}\n`;
-    answerKeyText += `\n${'='.repeat(60)}\n\n`;
+    // Import PDFKit
+    const PDFDocument = (await import('pdfkit')).default;
+    const fs = await import('fs');
+    const path = await import('path');
     
-    questions.forEach((q, index) => {
-      answerKeyText += `Câu ${index + 1}: ${q.content}\n`;
-      answerKeyText += `A. ${q.optionA}\n`;
-      answerKeyText += `B. ${q.optionB}\n`;
-      answerKeyText += `C. ${q.optionC}\n`;
-      answerKeyText += `D. ${q.optionD}\n`;
-      answerKeyText += `✓ Đáp án đúng: ${q.correctAnswer}\n`;
-      answerKeyText += `\n${'-'.repeat(60)}\n\n`;
+    // Create PDF document
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 50, bottom: 50, left: 50, right: 50 }
     });
     
-    // Send as downloadable text file
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="dap_an_${assignment.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt"`);
-    res.send(answerKeyText);
+    // Set response headers for PDF
+    const filename = `dap_an_${assignment.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
-    console.log('✅ Answer key sent successfully');
+    // Pipe PDF to response
+    doc.pipe(res);
+    
+    // Register font for Vietnamese support
+    const fontPath = path.join(process.cwd(), 'node_modules', 'pdfkit', 'js', 'data', 'Helvetica.afm');
+    
+    // Add title
+    doc.fontSize(20).text('ĐÁP ÁN BÀI TRẮC NGHIỆM', { align: 'center' });
+    doc.moveDown();
+    
+    // Add assignment info
+    doc.fontSize(12);
+    doc.text(`Bài tập: ${assignment.title}`);
+    doc.text(`Môn: ${assignment.classId?.name || 'N/A'}`);
+    doc.text(`Số câu hỏi: ${questions.length}`);
+    doc.text(`Điểm tối đa: ${assignment.maxScore}`);
+    doc.moveDown();
+    
+    // Add separator
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown();
+    
+    // Add questions and answers
+    questions.forEach((q, index) => {
+      // Check if we need a new page
+      if (doc.y > 700) {
+        doc.addPage();
+      }
+      
+      // Question number and content
+      doc.fontSize(11).font('Helvetica-Bold');
+      doc.text(`Câu ${index + 1}: `, { continued: false });
+      doc.font('Helvetica');
+      doc.text(q.content, { indent: 20 });
+      doc.moveDown(0.5);
+      
+      // Options
+      doc.fontSize(10);
+      doc.text(`   A. ${q.optionA}`);
+      doc.text(`   B. ${q.optionB}`);
+      doc.text(`   C. ${q.optionC}`);
+      doc.text(`   D. ${q.optionD}`);
+      doc.moveDown(0.5);
+      
+      // Correct answer (highlighted)
+      doc.fontSize(11).font('Helvetica-Bold');
+      doc.fillColor('green');
+      doc.text(`   ✓ Đáp án đúng: ${q.correctAnswer}`, { continued: false });
+      doc.fillColor('black').font('Helvetica');
+      doc.moveDown();
+      
+      // Separator
+      if (index < questions.length - 1) {
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown();
+      }
+    });
+    
+    // Finalize PDF
+    doc.end();
+    
+    console.log('✅ PDF answer key sent successfully');
     
   } catch (error) {
     console.error('Download answer key error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+    
+    // If headers not sent yet, send error response
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
   }
 };

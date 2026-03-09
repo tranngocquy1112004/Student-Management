@@ -44,6 +44,7 @@ const ClassDetail = () => {
     durationMinutes: 60,
   });
   const [quizQuestions, setQuizQuestions] = useState([]);
+  const [assignmentAttachments, setAssignmentAttachments] = useState([]);
   const [assignmentPage, setAssignmentPage] = useState(1);
   const assignmentsPerPage = 5;
   const [schedulePage, setSchedulePage] = useState(1);
@@ -213,9 +214,27 @@ const ClassDetail = () => {
         correctAnswer: q.correctAnswer,
       }));
     }
-    await api.post(`/classes/${id}/assignments`, payload);
+    const response = await api.post(`/classes/${id}/assignments`, payload);
+    
+    // Upload attachments if any
+    if (assignmentAttachments.length > 0) {
+      const assignmentId = response.data.data._id;
+      for (const file of assignmentAttachments) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          await api.post(`/assignments/${assignmentId}/attachments`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (uploadError) {
+          toast.error(`Lỗi upload file ${file.name}: ${uploadError.message}`);
+        }
+      }
+    }
+    
     setModal(null);
     setQuizQuestions([]);
+    setAssignmentAttachments([]);
     setAssignmentForm({
       title: '',
       description: '',
@@ -226,6 +245,7 @@ const ClassDetail = () => {
       durationMinutes: 60,
     });
     fetchAssignments();
+    toast.success('Đã tạo bài tập thành công');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Lỗi khi tạo bài');
     }
@@ -261,10 +281,28 @@ const ClassDetail = () => {
       }));
     }
     await api.put(`/assignments/${editing._id}`, payload);
+    
+    // Upload new attachments if any
+    if (assignmentAttachments.length > 0) {
+      for (const file of assignmentAttachments) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          await api.post(`/assignments/${editing._id}/attachments`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (uploadError) {
+          toast.error(`Lỗi upload file ${file.name}: ${uploadError.message}`);
+        }
+      }
+    }
+    
     setModal(null);
     setEditing(null);
     setQuizQuestions([]);
+    setAssignmentAttachments([]);
     fetchAssignments();
+    toast.success('Đã cập nhật bài tập thành công');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Lỗi khi cập nhật bài');
     }
@@ -676,6 +714,7 @@ const ClassDetail = () => {
       } else {
         setQuizQuestions([]);
       }
+      setAssignmentAttachments([]);
       setModal('editAssignment');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không tải được bài tập');
@@ -886,31 +925,8 @@ const ClassDetail = () => {
           <div className="page-header">
             <h3>Bài tập</h3>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              {canEdit && (
-                <>
-                  <button className="btn-primary" onClick={() => { setEditing(null); setModal('assignment'); }}>+ Thêm bài tập</button>
-                  <label className="btn-primary" style={{ cursor: 'pointer' }}>
-                    📁 Import Excel
-                    <input 
-                      type="file" 
-                      accept=".xlsx,.xls" 
-                      onChange={handleExcelImport} 
-                      style={{ display: 'none' }}
-                      disabled={importing}
-                    />
-                  </label>
-                  <label className="btn-primary" style={{ cursor: 'pointer' }}>
-                    📎 Import Files
-                    <input 
-                      type="file" 
-                      accept=".pdf,.doc,.docx,.zip,.rar,.txt,.jpg,.png,.mp4,.mp3" 
-                      multiple
-                      onChange={handleFileImport} 
-                      style={{ display: 'none' }}
-                      disabled={importing}
-                    />
-                  </label>
-                </>
+              {user?.role === 'teacher' && (
+                <button className="btn-primary" onClick={() => { setEditing(null); setModal('assignment'); }}>+ Thêm bài tập</button>
               )}
             </div>
           </div>
@@ -1614,6 +1630,66 @@ const ClassDetail = () => {
                 <option value="file">Bài nộp file / tự luận</option>
                 <option value="quiz">Bài trắc nghiệm (tự chấm)</option>
               </select>
+              
+              {/* File Attachments Section - Only show for file mode */}
+              {assignmentForm.mode === 'file' && (
+                <div style={{ marginTop: 16, padding: 12, border: '1px solid #e0e0e0', borderRadius: 8, backgroundColor: '#f9f9f9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <strong>📎 Tài liệu đính kèm</strong>
+                    <label className="btn-primary" style={{ cursor: 'pointer', fontSize: 14, padding: '6px 12px' }}>
+                      + Thêm file
+                      <input 
+                        type="file" 
+                        accept=".pdf,.doc,.docx,.zip,.rar,.txt,.jpg,.png,.mp4,.mp3" 
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files);
+                          setAssignmentAttachments(prev => [...prev, ...files]);
+                          e.target.value = '';
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
+                  {assignmentAttachments.length === 0 ? (
+                    <p style={{ fontSize: 13, color: '#666', fontStyle: 'italic', margin: 0 }}>
+                      Chưa có file đính kèm
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {assignmentAttachments.map((file, idx) => (
+                        <div key={idx} style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          padding: '6px 8px',
+                          backgroundColor: 'white',
+                          borderRadius: 4,
+                          fontSize: 13
+                        }}>
+                          <span>📄 {file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setAssignmentAttachments(prev => prev.filter((_, i) => i !== idx))}
+                            style={{ 
+                              background: '#ef4444', 
+                              color: 'white', 
+                              border: 'none', 
+                              padding: '4px 8px', 
+                              borderRadius: 4, 
+                              cursor: 'pointer',
+                              fontSize: 12
+                            }}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {assignmentForm.mode === 'quiz' && (
                 <>
                   <input
@@ -1697,7 +1773,7 @@ const ClassDetail = () => {
         </div>
       )}
       {modal === 'editAssignment' && editing && (
-        <div className="modal-overlay" onClick={() => { setModal(null); setEditing(null); setQuizQuestions([]); }}>
+        <div className="modal-overlay" onClick={() => { setModal(null); setEditing(null); setQuizQuestions([]); setAssignmentAttachments([]); }}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>Sửa bài tập</h3>
             <form onSubmit={handleUpdateAssignment}>
@@ -1746,6 +1822,92 @@ const ClassDetail = () => {
                 <option value="file">Bài nộp file / tự luận</option>
                 <option value="quiz">Bài trắc nghiệm (tự chấm)</option>
               </select>
+              
+              {/* File Attachments Section - Only show for file mode */}
+              {assignmentForm.mode === 'file' && (
+                <div style={{ marginTop: 16, padding: 12, border: '1px solid #e0e0e0', borderRadius: 8, backgroundColor: '#f9f9f9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <strong>📎 Tài liệu đính kèm</strong>
+                    <label className="btn-primary" style={{ cursor: 'pointer', fontSize: 14, padding: '6px 12px' }}>
+                      + Thêm file
+                      <input 
+                        type="file" 
+                        accept=".pdf,.doc,.docx,.zip,.rar,.txt,.jpg,.png,.mp4,.mp3" 
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files);
+                          setAssignmentAttachments(prev => [...prev, ...files]);
+                          e.target.value = '';
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
+                  
+                  {/* Existing attachments */}
+                  {editing.attachments && editing.attachments.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <p style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>File hiện có:</p>
+                      {editing.attachments.map((att, idx) => (
+                        <div key={idx} style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          padding: '6px 8px',
+                          backgroundColor: '#e3f2fd',
+                          borderRadius: 4,
+                          fontSize: 13,
+                          marginBottom: 4
+                        }}>
+                          <span>📄 {att.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* New attachments to upload */}
+                  {assignmentAttachments.length === 0 ? (
+                    <p style={{ fontSize: 13, color: '#666', fontStyle: 'italic', margin: 0 }}>
+                      {editing.attachments && editing.attachments.length > 0 ? 'Không có file mới' : 'Chưa có file đính kèm'}
+                    </p>
+                  ) : (
+                    <div>
+                      <p style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>File mới sẽ thêm:</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {assignmentAttachments.map((file, idx) => (
+                          <div key={idx} style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            padding: '6px 8px',
+                            backgroundColor: 'white',
+                            borderRadius: 4,
+                            fontSize: 13
+                          }}>
+                            <span>📄 {file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setAssignmentAttachments(prev => prev.filter((_, i) => i !== idx))}
+                              style={{ 
+                                background: '#ef4444', 
+                                color: 'white', 
+                                border: 'none', 
+                                padding: '4px 8px', 
+                                borderRadius: 4, 
+                                cursor: 'pointer',
+                                fontSize: 12
+                              }}
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {assignmentForm.mode === 'quiz' && (
                 <>
                   <input
@@ -1823,7 +1985,7 @@ const ClassDetail = () => {
                   </div>
                 </>
               )}
-              <div><button type="submit">Cập nhật</button><button type="button" onClick={() => { setModal(null); setEditing(null); setQuizQuestions([]); }}>Hủy</button></div>
+              <div><button type="submit">Cập nhật</button><button type="button" onClick={() => { setModal(null); setEditing(null); setQuizQuestions([]); setAssignmentAttachments([]); }}>Hủy</button></div>
             </form>
           </div>
         </div>
@@ -1915,3 +2077,4 @@ const ClassDetail = () => {
 };
 
 export default ClassDetail;
+

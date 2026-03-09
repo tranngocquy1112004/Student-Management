@@ -242,7 +242,27 @@ export const gradeSubmission = async (req, res) => {
     const classId = sub.assignmentId?.classId?._id || sub.assignmentId?.classId;
     const cls = await Class.findById(classId);
     if (cls.teacherId.toString() !== req.user._id.toString() && req.user.role !== 'admin') return res.status(403).json({ success: false });
-    sub.score = req.body.score;
+    
+    // Validate score không vượt quá maxScore của assignment
+    const assignment = sub.assignmentId;
+    const maxScore = assignment.maxScore || 10;
+    const score = parseFloat(req.body.score);
+    
+    if (score < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Điểm không được nhỏ hơn 0' 
+      });
+    }
+    
+    if (score > maxScore) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Điểm không được vượt quá ${maxScore} điểm` 
+      });
+    }
+    
+    sub.score = score;
     sub.feedback = req.body.feedback;
     sub.status = 'graded';
     sub.gradedBy = req.user._id;

@@ -56,9 +56,19 @@ const AssignmentSubmissions = () => {
       return;
     }
 
+    const scoreNum = parseFloat(grading.score);
+    if (scoreNum < 0) {
+      toast.error('Điểm không được nhỏ hơn 0');
+      return;
+    }
+    if (scoreNum > assignment.maxScore) {
+      toast.error(`Điểm không được vượt quá ${assignment.maxScore} điểm`);
+      return;
+    }
+
     try {
       await api.put(`/submissions/${submissionId}/grade`, {
-        score: parseFloat(grading.score),
+        score: scoreNum,
         feedback: grading.feedback || ''
       });
       
@@ -71,7 +81,7 @@ const AssignmentSubmissions = () => {
       // Refresh submissions
       fetchSubmissions();
     } catch (error) {
-      toast.error('Lỗi khi lưu điểm: ' + error.message);
+      toast.error(error.response?.data?.message || 'Lỗi khi lưu điểm: ' + error.message);
     }
   };
 
@@ -116,10 +126,18 @@ const AssignmentSubmissions = () => {
         responseType: 'blob'
       });
       
+      // Get content type from response
+      const contentType = response.headers['content-type'];
+      const isTextFile = contentType && contentType.includes('text/plain');
+      
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${assignment.title}_dap_an.pdf`;
+      
+      // Use .txt extension for text files, .pdf for PDF files
+      const extension = isTextFile ? 'txt' : 'pdf';
+      link.download = `${assignment.title}_dap_an.${extension}`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

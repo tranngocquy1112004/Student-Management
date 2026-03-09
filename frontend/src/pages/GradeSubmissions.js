@@ -19,7 +19,16 @@ const GradeSubmissions = () => {
 
   const handleGrade = async (subId, score, feedback) => {
     try {
-      await api.post(`/submissions/${subId}/grade`, { score: parseFloat(score), feedback });
+      const scoreNum = parseFloat(score);
+      if (scoreNum < 0) {
+        toast.error('Điểm không được nhỏ hơn 0');
+        return;
+      }
+      if (scoreNum > assignment.maxScore) {
+        toast.error(`Điểm không được vượt quá ${assignment.maxScore} điểm`);
+        return;
+      }
+      await api.post(`/submissions/${subId}/grade`, { score: scoreNum, feedback });
       toast.success('Đã chấm điểm');
       api.get(`/assignments/${id}/submissions`).then(({ data }) => setSubmissions(data.data));
     } catch (err) {
@@ -46,7 +55,7 @@ const GradeSubmissions = () => {
                 <td>{s.score ?? '-'}</td>
                 <td>
                   {s.status !== 'graded' && (
-                    <GradeForm submission={s} onGrade={handleGrade} />
+                    <GradeForm submission={s} onGrade={handleGrade} maxScore={assignment.maxScore} />
                   )}
                 </td>
               </tr>
@@ -58,12 +67,22 @@ const GradeSubmissions = () => {
   );
 };
 
-const GradeForm = ({ submission, onGrade }) => {
+const GradeForm = ({ submission, onGrade, maxScore }) => {
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
   return (
     <form onSubmit={(e) => { e.preventDefault(); onGrade(submission._id, score, feedback); }} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-      <input type="number" step="0.1" placeholder="Điểm" value={score} onChange={e => setScore(e.target.value)} required style={{ width: 80 }} />
+      <input 
+        type="number" 
+        min="0"
+        max={maxScore || 10}
+        step="0.1" 
+        placeholder="Điểm" 
+        value={score} 
+        onChange={e => setScore(e.target.value)} 
+        required 
+        style={{ width: 80 }} 
+      />
       <input placeholder="Nhận xét" value={feedback} onChange={e => setFeedback(e.target.value)} style={{ width: 150 }} />
       <button type="submit">Chấm</button>
     </form>
